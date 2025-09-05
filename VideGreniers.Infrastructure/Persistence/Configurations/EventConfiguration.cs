@@ -48,6 +48,10 @@ public class EventConfiguration : IEntityTypeConfiguration<Event>
             dateRange.Property(dr => dr.EndDate)
                 .HasColumnName("DateRange_EndDate")
                 .IsRequired();
+                
+            // Index on StartDate for temporal queries
+            dateRange.HasIndex(dr => dr.StartDate)
+                .HasDatabaseName("IX_Events_StartDate");
         });
 
         // Configure Location as owned entity
@@ -62,6 +66,10 @@ public class EventConfiguration : IEntityTypeConfiguration<Event>
                 .HasColumnName("Location_Longitude")
                 .HasPrecision(18, 6)
                 .IsRequired();
+                
+            // Composite index on coordinates for geo queries
+            location.HasIndex(l => new { l.Latitude, l.Longitude })
+                .HasDatabaseName("IX_Events_Location");
         });
 
         // Configure Address as owned entity
@@ -200,8 +208,7 @@ public class EventConfiguration : IEntityTypeConfiguration<Event>
         builder.HasIndex(e => e.Status)
             .HasDatabaseName("IX_Events_Status");
 
-        // Simple performance indexes (composite indexes can be added later)
-        // Note: Complex indexes on owned entities will be added in a future migration
+        // Note: Composite Status+StartDate index will be created manually if needed
 
         builder.HasIndex(e => e.OrganizerId)
             .HasDatabaseName("IX_Events_OrganizerId");
