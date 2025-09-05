@@ -1,3 +1,23 @@
 /.idea/.idea.VideGreniers/.idea/encodings.xml
 /.idea/.idea.VideGreniers/.idea/indexLayout.xml
 /.idea/.idea.VideGreniers/.idea/vcs.xml
+# Dossiers de build
+bin/
+obj/
+
+# Rider / IntelliJ
+.idea/
+*.iml
+
+# Fichiers de cache NuGet
+*.nuget.cache
+*.nupkg
+
+# Restore info
+*.project.restore.info
+
+# Specs générés
+project.packagespec.json
+
+# Logs
+*.log
