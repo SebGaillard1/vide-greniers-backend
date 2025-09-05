@@ -1,5 +1,10 @@
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using VideGreniers.API.Extensions;
+using VideGreniers.API.Middleware;
+using VideGreniers.API.Services;
+using VideGreniers.Application.Common.Interfaces;
 using VideGreniers.Infrastructure;
 using VideGreniers.Infrastructure.Persistence;
 
@@ -17,24 +22,21 @@ Log.Logger = new LoggerConfiguration()
 builder.Host.UseSerilog();
 
 // Add services to the container
-builder.Services.AddHealthChecks();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+
+// Add custom API services
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+
+// Add service extensions
+builder.Services.AddCorsPolicy(builder.Configuration);
+builder.Services.AddHealthChecks(builder.Configuration);
+builder.Services.AddSwaggerDocumentation();
+builder.Services.AddJwtAuthentication(builder.Configuration);
+builder.Services.AddRateLimiting();
 
 // Add Infrastructure services
 builder.Services.AddInfrastructure(builder.Configuration);
-
-// CORS configuration
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAll", policy =>
-    {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
-});
 
 var app = builder.Build();
 
@@ -66,19 +68,39 @@ if (app.Environment.IsDevelopment())
 }
 
 // Configure the HTTP request pipeline
+app.UseMiddleware<ErrorHandlingMiddleware>();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
-    app.UseCors("AllowAll");
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Vide-Greniers API V1");
+        c.RoutePrefix = string.Empty; // Set Swagger UI at the app's root
+    });
 }
 
-app.UseSerilogRequestLogging();
+app.UseMiddleware<RequestLoggingMiddleware>();
+app.UseMiddleware<ResponseCachingMiddleware>();
+
 app.UseHttpsRedirection();
+app.UseCors();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.UseRouting();
 
-// Health check endpoint
+// Health check endpoints
 app.MapHealthChecks("/health");
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready")
+});
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("live")
+});
 
 // Development-only endpoints
 if (app.Environment.IsDevelopment())
