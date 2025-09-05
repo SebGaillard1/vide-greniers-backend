@@ -31,9 +31,12 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
                 .HasColumnName("Email")
                 .HasMaxLength(256)
                 .IsRequired();
+                
+            // Index on email for performance and uniqueness
+            email.HasIndex(e => e.Value)
+                .IsUnique()
+                .HasDatabaseName("IX_Users_Email");
         });
-
-        // Email index will be added in a future migration
 
         // Configure PhoneNumber value object
         builder.OwnsOne(u => u.PhoneNumber, phone =>
