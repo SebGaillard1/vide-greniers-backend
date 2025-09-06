@@ -1,5 +1,6 @@
 using HealthChecks.NpgSql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
@@ -180,6 +181,16 @@ public static class ServiceCollectionExtensions
                     return context.Response.WriteAsync(result);
                 }
             };
+        });
+
+        // Configure authorization to use JWT Bearer for API routes
+        services.AddAuthorization(options =>
+        {
+            // Default policy for API routes - forces JWT Bearer authentication
+            options.DefaultPolicy = new AuthorizationPolicyBuilder()
+                .RequireAuthenticatedUser()
+                .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme)
+                .Build();
         });
 
         return services;

@@ -41,14 +41,16 @@ builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddCorsPolicy(builder.Configuration);
 builder.Services.AddHealthChecks(builder.Configuration);
 builder.Services.AddSwaggerDocumentation();
-builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.Services.AddRateLimiting();
 
 // Add Application services (includes MediatR)
 builder.Services.AddApplication();
 
-// Add Infrastructure services
+// Add Infrastructure services (includes Identity)
 builder.Services.AddInfrastructure(builder.Configuration);
+
+// Add JWT Authentication (must be after Identity to override default authentication scheme)
+builder.Services.AddJwtAuthentication(builder.Configuration);
 
 var app = builder.Build();
 

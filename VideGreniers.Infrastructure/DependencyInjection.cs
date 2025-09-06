@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -70,6 +71,36 @@ public static class DependencyInjection
             })
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddDefaultTokenProviders();
+
+        // Configure ApplicationCookie to return JSON responses instead of redirects for API calls
+        services.ConfigureApplicationCookie(options =>
+        {
+            options.Events.OnRedirectToLogin = context =>
+            {
+                context.Response.StatusCode = 401;
+                context.Response.ContentType = "application/json";
+                var result = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    success = false,
+                    errors = new[] { "Authentication required. Please login to access this resource." },
+                    timestamp = DateTime.UtcNow
+                });
+                return context.Response.WriteAsync(result);
+            };
+            
+            options.Events.OnRedirectToAccessDenied = context =>
+            {
+                context.Response.StatusCode = 403;
+                context.Response.ContentType = "application/json";
+                var result = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    success = false,
+                    errors = new[] { "Access denied. You do not have permission to access this resource." },
+                    timestamp = DateTime.UtcNow
+                });
+                return context.Response.WriteAsync(result);
+            };
+        });
 
         // Generic Repository (required for CQRS handlers)
         services.AddScoped(typeof(Application.Common.Interfaces.IRepository<>), typeof(Repository<>));
