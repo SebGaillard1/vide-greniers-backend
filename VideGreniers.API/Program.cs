@@ -24,7 +24,15 @@ builder.Host.UseSerilog();
 
 // Add services to the container
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Configure date format to be compatible with iOS
+        options.JsonSerializerOptions.Converters.Add(new VideGreniers.API.Common.DateTimeJsonConverter());
+        options.JsonSerializerOptions.Converters.Add(new VideGreniers.API.Common.NullableDateTimeJsonConverter());
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
 
 // Add custom API services
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();

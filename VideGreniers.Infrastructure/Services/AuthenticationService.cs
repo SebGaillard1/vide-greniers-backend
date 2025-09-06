@@ -1,8 +1,11 @@
 using ErrorOr;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
 using VideGreniers.Application.Authentication.Models;
+using VideGreniers.Application.Common.DTOs;
 using VideGreniers.Application.Common.Interfaces;
+using VideGreniers.Domain.Interfaces;
 using VideGreniers.Infrastructure.Identity;
 
 namespace VideGreniers.Infrastructure.Services;
@@ -16,6 +19,7 @@ public class AuthenticationService : IAuthenticationService
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly IJwtTokenService _jwtTokenService;
     private readonly IRefreshTokenRepository _refreshTokenRepository;
+    private readonly IUserRepository _userRepository;
     private readonly ILogger<AuthenticationService> _logger;
 
     public AuthenticationService(
@@ -23,12 +27,14 @@ public class AuthenticationService : IAuthenticationService
         SignInManager<ApplicationUser> signInManager,
         IJwtTokenService jwtTokenService,
         IRefreshTokenRepository refreshTokenRepository,
+        IUserRepository userRepository,
         ILogger<AuthenticationService> logger)
     {
         _userManager = userManager;
         _signInManager = signInManager;
         _jwtTokenService = jwtTokenService;
         _refreshTokenRepository = refreshTokenRepository;
+        _userRepository = userRepository;
         _logger = logger;
     }
 
@@ -80,6 +86,10 @@ public class AuthenticationService : IAuthenticationService
         var accessToken = _jwtTokenService.GenerateAccessToken(authenticatedUser, roles);
         var refreshTokenValue = _jwtTokenService.GenerateRefreshToken();
         var accessTokenExpiry = _jwtTokenService.GetAccessTokenExpiration();
+        var expiresIn = (int)(accessTokenExpiry - DateTime.UtcNow).TotalSeconds;
+
+        // Create UserDto
+        var userDto = await CreateUserDtoAsync(user);
 
         // Store refresh token
         await _refreshTokenRepository.AddAsync(
@@ -92,11 +102,8 @@ public class AuthenticationService : IAuthenticationService
         return new AuthenticationResult(
             accessToken,
             refreshTokenValue,
-            user.Id.ToString(),
-            user.Email!,
-            user.FirstName,
-            user.LastName,
-            accessTokenExpiry);
+            expiresIn,
+            userDto);
     }
 
     public async Task<ErrorOr<AuthenticationResult>> LoginAsync(string email, string password)
@@ -145,6 +152,10 @@ public class AuthenticationService : IAuthenticationService
         var accessToken = _jwtTokenService.GenerateAccessToken(authenticatedUser, roles);
         var refreshTokenValue = _jwtTokenService.GenerateRefreshToken();
         var accessTokenExpiry = _jwtTokenService.GetAccessTokenExpiration();
+        var expiresIn = (int)(accessTokenExpiry - DateTime.UtcNow).TotalSeconds;
+
+        // Create UserDto
+        var userDto = await CreateUserDtoAsync(user);
 
         // Store refresh token
         await _refreshTokenRepository.AddAsync(
@@ -157,11 +168,8 @@ public class AuthenticationService : IAuthenticationService
         return new AuthenticationResult(
             accessToken,
             refreshTokenValue,
-            user.Id.ToString(),
-            user.Email!,
-            user.FirstName,
-            user.LastName,
-            accessTokenExpiry);
+            expiresIn,
+            userDto);
     }
 
     public async Task<ErrorOr<AuthenticationResult>> RefreshTokenAsync(string accessToken, string refreshToken)
@@ -195,6 +203,10 @@ public class AuthenticationService : IAuthenticationService
         var newAccessToken = _jwtTokenService.GenerateAccessToken(authenticatedUser, roles);
         var newRefreshTokenValue = _jwtTokenService.GenerateRefreshToken();
         var accessTokenExpiry = _jwtTokenService.GetAccessTokenExpiration();
+        var expiresIn = (int)(accessTokenExpiry - DateTime.UtcNow).TotalSeconds;
+
+        // Create UserDto
+        var userDto = await CreateUserDtoAsync(user);
 
         // Revoke old token and create new one
         await _refreshTokenRepository.RevokeAsync(refreshToken);
@@ -208,11 +220,8 @@ public class AuthenticationService : IAuthenticationService
         return new AuthenticationResult(
             newAccessToken,
             newRefreshTokenValue,
-            user.Id.ToString(),
-            user.Email!,
-            user.FirstName,
-            user.LastName,
-            accessTokenExpiry);
+            expiresIn,
+            userDto);
     }
 
     public async Task<ErrorOr<bool>> LogoutAsync(string refreshToken)
@@ -265,5 +274,41 @@ public class AuthenticationService : IAuthenticationService
     {
         var user = await _userManager.FindByEmailAsync(email);
         return user != null && !user.IsDeleted;
+    }
+
+    private async Task<UserDto> CreateUserDtoAsync(ApplicationUser applicationUser)
+    {
+        // Try to get the domain user
+        var domainUser = await _userRepository.GetByIdAsync(applicationUser.Id);
+        
+        if (domainUser != null)
+        {
+            return new UserDto
+            {
+                Id = domainUser.Id,
+                FirstName = domainUser.FirstName,
+                LastName = domainUser.LastName,
+                Email = domainUser.Email.Value,
+                PhoneNumber = domainUser.PhoneNumber?.Value,
+                CreatedOnUtc = domainUser.CreatedOnUtc,
+                ModifiedOnUtc = domainUser.ModifiedOnUtc,
+                CreatedEventsCount = domainUser.CreatedEvents.Count,
+                FavoritesCount = domainUser.Favorites.Count(f => f.Status == Domain.Enums.FavoriteStatus.Active)
+            };
+        }
+
+        // Fallback to ApplicationUser data if domain user not found
+        return new UserDto
+        {
+            Id = applicationUser.Id,
+            FirstName = applicationUser.FirstName ?? string.Empty,
+            LastName = applicationUser.LastName ?? string.Empty,
+            Email = applicationUser.Email ?? string.Empty,
+            PhoneNumber = null,
+            CreatedOnUtc = applicationUser.CreatedAt,
+            ModifiedOnUtc = applicationUser.UpdatedAt,
+            CreatedEventsCount = 0,
+            FavoritesCount = 0
+        };
     }
 }

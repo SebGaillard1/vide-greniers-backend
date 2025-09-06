@@ -10,8 +10,8 @@ public record UserDto
     public string LastName { get; init; } = string.Empty;
     public string Email { get; init; } = string.Empty;
     public string? PhoneNumber { get; init; }
-    public DateTimeOffset CreatedOnUtc { get; init; }
-    public DateTimeOffset? ModifiedOnUtc { get; init; }
+    public DateTime CreatedOnUtc { get; init; }
+    public DateTime? ModifiedOnUtc { get; init; }
     
     // Computed properties
     public string FullName => $"{FirstName} {LastName}".Trim();

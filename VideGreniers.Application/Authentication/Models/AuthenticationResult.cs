@@ -1,18 +1,16 @@
 using ErrorOr;
+using VideGreniers.Application.Common.DTOs;
 
 namespace VideGreniers.Application.Authentication.Models;
 
 /// <summary>
-/// Result of authentication operations
+/// Result of authentication operations - matches iOS AuthResponse structure
 /// </summary>
 public record AuthenticationResult(
     string AccessToken,
     string RefreshToken,
-    string UserId,
-    string Email,
-    string? FirstName,
-    string? LastName,
-    DateTime ExpiresAt);
+    int ExpiresIn,
+    UserDto User);
 
 /// <summary>
 /// User information from authentication
