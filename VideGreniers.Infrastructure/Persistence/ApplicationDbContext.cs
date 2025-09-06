@@ -30,6 +30,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
     public DbSet<Favorite> Favorites { get; set; } = null!;
     public DbSet<Category> Categories { get; set; } = null!;
 
+    // Identity-related entities
+    public DbSet<RefreshToken> RefreshTokens { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

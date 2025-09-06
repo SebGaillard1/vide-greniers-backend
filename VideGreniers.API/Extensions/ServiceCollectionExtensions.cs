@@ -186,13 +186,64 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Configure rate limiting (disabled for now - will be implemented in next version)
+    /// Configure rate limiting for authentication endpoints
     /// </summary>
     public static IServiceCollection AddRateLimiting(this IServiceCollection services)
     {
-        // Note: Rate limiting implementation temporarily disabled due to API changes
-        // Will be re-implemented in next version with proper .NET 9 configuration
-        
+        services.AddRateLimiter(options =>
+        {
+            // Rate limiting for authentication endpoints
+            options.AddPolicy("AuthPolicy", httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+                    factory: partition => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 5,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = 2
+                    }));
+
+            // General API rate limiting
+            options.AddPolicy("GeneralPolicy", httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+                    factory: partition => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 100,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = 10
+                    }));
+
+            // Configure global behavior
+            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+                    factory: partition => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 1000,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = 50
+                    }));
+
+            options.OnRejected = async (context, token) =>
+            {
+                context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+                context.HttpContext.Response.ContentType = "application/json";
+
+                var result = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    success = false,
+                    errors = new[] { "Too many requests. Please try again later." },
+                    timestamp = DateTime.UtcNow
+                });
+
+                await context.HttpContext.Response.WriteAsync(result, cancellationToken: token);
+            };
+        });
+
         return services;
     }
 }

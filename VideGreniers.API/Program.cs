@@ -90,6 +90,7 @@ app.UseMiddleware<ResponseCachingMiddleware>();
 app.UseHttpsRedirection();
 app.UseCors();
 app.UseRouting();
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
