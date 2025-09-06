@@ -21,6 +21,13 @@ public record ApiResponse<T>
     public bool Success { get; init; }
 
     /// <summary>
+    /// Optional message for additional information
+    /// </summary>
+    [JsonPropertyName("message")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Message { get; init; }
+
+    /// <summary>
     /// List of error messages (only present when Success is false)
     /// </summary>
     [JsonPropertyName("errors")]

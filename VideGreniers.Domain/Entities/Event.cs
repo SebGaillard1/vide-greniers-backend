@@ -24,6 +24,7 @@ public sealed class Event : BaseAuditableEntity
     public TimeSpan? EarlyBirdTime { get; private set; }
     public Money? EarlyBirdFee { get; private set; }
     public DateTime? PublishedOnUtc { get; private set; }
+    public int FavoriteCount { get; private set; }
 
     // Foreign keys
     public Guid OrganizerId { get; private set; }
@@ -574,5 +575,27 @@ public sealed class Event : BaseAuditableEntity
     internal void RemoveFavorite(Favorite favorite)
     {
         _favorites.Remove(favorite);
+    }
+
+    public void IncrementFavoriteCount()
+    {
+        FavoriteCount++;
+        MarkAsModified();
+    }
+
+    public void DecrementFavoriteCount()
+    {
+        if (FavoriteCount > 0)
+        {
+            FavoriteCount--;
+            MarkAsModified();
+        }
+    }
+
+    public void UpdateFavoriteCount(int count)
+    {
+        if (count < 0) count = 0;
+        FavoriteCount = count;
+        MarkAsModified();
     }
 }

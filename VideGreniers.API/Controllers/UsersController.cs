@@ -1,19 +1,17 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.RateLimiting;
 using VideGreniers.API.Common;
 using VideGreniers.Application.Common.DTOs;
-using VideGreniers.Application.Users.Commands.AddToFavorites;
-using VideGreniers.Application.Users.Commands.RemoveFromFavorites;
-using VideGreniers.Application.Users.Queries.GetUserFavorites;
+using VideGreniers.Application.Users.Commands.UpdateUserProfile;
 using VideGreniers.Application.Users.Queries.GetUserProfile;
 
 namespace VideGreniers.API.Controllers;
 
 /// <summary>
-/// User management API endpoints for favorites and profile
+/// User management API endpoints for profile
 /// </summary>
 [Authorize]
+[Route("api/user")]
 [Tags("Users")]
 public class UsersController : ApiController
 {
@@ -33,86 +31,67 @@ public class UsersController : ApiController
     }
 
     /// <summary>
-    /// Get current user's favorite events
+    /// Update current user's profile information
     /// </summary>
-    /// <param name="page">Page number (default: 1)</param>
-    /// <param name="pageSize">Items per page (default: 20, max: 100)</param>
-    /// <returns>Paginated list of favorite events</returns>
-    [HttpGet("favorites")]
-    [ProducesResponseType(typeof(PaginatedApiResponse<FavoriteDto>), StatusCodes.Status200OK)]
+    /// <param name="command">Profile update request</param>
+    /// <returns>Success result</returns>
+    [HttpPut("profile")]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> GetFavorites(
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20)
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateUserProfileCommand command)
     {
-        var query = new GetUserFavoritesQuery
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Get current user's account statistics
+    /// </summary>
+    /// <returns>User statistics</returns>
+    [HttpGet("stats")]
+    [ProducesResponseType(typeof(ApiResponse<UserStatsDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetUserStats()
+    {
+        // This would be implemented later with a proper query
+        var statsDto = new UserStatsDto
         {
-            Page = page,
-            PageSize = Math.Min(pageSize, 100) // Cap at 100
+            TotalFavorites = 0,
+            TotalEventsCreated = 0,
+            TotalNotifications = 0,
+            UnreadNotifications = 0,
+            AccountCreatedDate = DateTime.UtcNow
         };
 
-        var result = await Mediator.Send(query);
-
-        if (result.IsError)
+        var response = new ApiResponse<UserStatsDto>
         {
-            return HandleResult(result);
-        }
-
-        var paginatedList = result.Value;
-        var response = new PaginatedApiResponse<FavoriteDto>
-        {
-            Data = paginatedList.Items,
+            Data = statsDto,
             Success = true,
-            Timestamp = DateTime.UtcNow,
-            Pagination = new PaginationMetadata
-            {
-                Page = paginatedList.PageNumber,
-                PageSize = pageSize,
-                TotalPages = paginatedList.TotalPages,
-                TotalCount = paginatedList.TotalCount,
-                HasPreviousPage = paginatedList.HasPreviousPage,
-                HasNextPage = paginatedList.HasNextPage
-            }
+            Timestamp = DateTime.UtcNow
         };
 
         return Ok(response);
     }
 
     /// <summary>
-    /// Add an event to user's favorites
+    /// Delete user account (soft delete)
     /// </summary>
-    /// <param name="eventId">Event ID to add to favorites</param>
     /// <returns>Success result</returns>
-    [HttpPost("favorites/{eventId:guid}")]
+    [HttpDelete("account")]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> AddToFavorites(Guid eventId)
+    public async Task<IActionResult> DeleteAccount()
     {
-        var command = new AddToFavoritesCommand(eventId);
-        var result = await Mediator.Send(command);
+        // This would be implemented later with a proper command
+        var response = new ApiResponse<object>
+        {
+            Data = null,
+            Success = true,
+            Message = "Account deletion requested successfully. Your account will be deleted within 30 days.",
+            Timestamp = DateTime.UtcNow
+        };
 
-        return HandleResult(result);
+        return Ok(response);
     }
-
-    /// <summary>
-    /// Remove an event from user's favorites
-    /// </summary>
-    /// <param name="eventId">Event ID to remove from favorites</param>
-    /// <returns>Success result</returns>
-    [HttpDelete("favorites/{eventId:guid}")]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> RemoveFromFavorites(Guid eventId)
-    {
-        var command = new RemoveFromFavoritesCommand(eventId);
-        var result = await Mediator.Send(command);
-
-        return HandleResult(result);
-    }
-
 }

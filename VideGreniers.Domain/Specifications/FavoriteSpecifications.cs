@@ -136,3 +136,12 @@ public class FavoritesCountByEventSpecification : BaseSpecification<Favorite>
         // Used for counting, no includes needed
     }
 }
+
+public class UserEventsFavoriteStatusSpecification : BaseSpecification<Favorite>
+{
+    public UserEventsFavoriteStatusSpecification(Guid userId, IList<Guid> eventIds) 
+        : base(f => f.UserId == userId && eventIds.Contains(f.EventId))
+    {
+        // Used for checking status, no includes needed for performance
+    }
+}

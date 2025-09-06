@@ -12,15 +12,18 @@ namespace VideGreniers.Application.Users.Commands.RemoveFromFavorites;
 public class RemoveFromFavoritesCommandHandler : IRequestHandler<RemoveFromFavoritesCommand, ErrorOr<Success>>
 {
     private readonly IRepository<Favorite> _favoriteRepository;
+    private readonly IRepository<Event> _eventRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly ICacheService _cacheService;
 
     public RemoveFromFavoritesCommandHandler(
         IRepository<Favorite> favoriteRepository,
+        IRepository<Event> eventRepository,
         ICurrentUserService currentUserService,
         ICacheService cacheService)
     {
         _favoriteRepository = favoriteRepository;
+        _eventRepository = eventRepository;
         _currentUserService = currentUserService;
         _cacheService = cacheService;
     }
@@ -51,8 +54,15 @@ public class RemoveFromFavoritesCommandHandler : IRequestHandler<RemoveFromFavor
 
         // Archive the favorite (soft delete)
         favorite.Archive();
-
         await _favoriteRepository.UpdateAsync(favorite, cancellationToken);
+
+        // Decrement favorite count on event
+        var eventEntity = await _eventRepository.GetByIdAsync(request.EventId, cancellationToken);
+        if (eventEntity != null)
+        {
+            eventEntity.DecrementFavoriteCount();
+            await _eventRepository.UpdateAsync(eventEntity, cancellationToken);
+        }
 
         // Invalidate user favorites cache
         await _cacheService.RemoveByPatternAsync($"favorites:user_{userId}:*", cancellationToken);
