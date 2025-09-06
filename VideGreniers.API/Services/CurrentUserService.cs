@@ -1,5 +1,7 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Identity;
 using VideGreniers.Application.Common.Interfaces;
+using VideGreniers.Infrastructure.Identity;
 
 namespace VideGreniers.API.Services;
 
@@ -9,10 +11,12 @@ namespace VideGreniers.API.Services;
 public class CurrentUserService : ICurrentUserService
 {
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly UserManager<ApplicationUser> _userManager;
 
-    public CurrentUserService(IHttpContextAccessor httpContextAccessor)
+    public CurrentUserService(IHttpContextAccessor httpContextAccessor, UserManager<ApplicationUser> userManager)
     {
         _httpContextAccessor = httpContextAccessor;
+        _userManager = userManager;
     }
 
     public Guid? UserId
@@ -46,5 +50,14 @@ public class CurrentUserService : ICurrentUserService
     public bool IsInRole(string role)
     {
         return _httpContextAccessor.HttpContext?.User?.IsInRole(role) == true;
+    }
+
+    public async Task<Guid?> GetDomainUserIdAsync()
+    {
+        if (!IsAuthenticated || UserId == null)
+            return null;
+
+        var applicationUser = await _userManager.FindByIdAsync(UserId.Value.ToString());
+        return applicationUser?.DomainUserId;
     }
 }

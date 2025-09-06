@@ -193,6 +193,11 @@ public class EventsController : ApiController
     {
         var result = await Mediator.Send(command);
 
+        if (result.IsError)
+        {
+            return HandleResult(result);
+        }
+
         return HandleCreatedResult(result, nameof(GetEventById), new { id = result.Value });
     }
 

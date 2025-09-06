@@ -36,4 +36,10 @@ public interface ICurrentUserService
     /// <param name="role">Role to check</param>
     /// <returns>True if user has the role, false otherwise</returns>
     bool IsInRole(string role);
+
+    /// <summary>
+    /// Gets the domain user ID for the current user
+    /// </summary>
+    /// <returns>Domain user ID if available, null otherwise</returns>
+    Task<Guid?> GetDomainUserIdAsync();
 }

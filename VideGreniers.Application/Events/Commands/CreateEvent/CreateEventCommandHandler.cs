@@ -2,8 +2,7 @@ using ErrorOr;
 using MediatR;
 using VideGreniers.Application.Common.Interfaces;
 using VideGreniers.Domain.Entities;
-using VideGreniers.Domain.Enums;
-using VideGreniers.Domain.ValueObjects;
+using IUnitOfWork = VideGreniers.Domain.Interfaces.IUnitOfWork;
 
 namespace VideGreniers.Application.Events.Commands.CreateEvent;
 
@@ -16,17 +15,20 @@ public class CreateEventCommandHandler : IRequestHandler<CreateEventCommand, Err
     private readonly IRepository<User> _userRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly ICacheService _cacheService;
+    private readonly IUnitOfWork _unitOfWork;
 
     public CreateEventCommandHandler(
         IRepository<Event> eventRepository,
         IRepository<User> userRepository,
         ICurrentUserService currentUserService,
-        ICacheService cacheService)
+        ICacheService cacheService,
+        IUnitOfWork unitOfWork)
     {
         _eventRepository = eventRepository;
         _userRepository = userRepository;
         _currentUserService = currentUserService;
         _cacheService = cacheService;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<ErrorOr<Guid>> Handle(CreateEventCommand request, CancellationToken cancellationToken)
@@ -37,12 +39,8 @@ public class CreateEventCommandHandler : IRequestHandler<CreateEventCommand, Err
             return Error.Unauthorized("User must be authenticated to create events");
         }
 
-        // Verify organizer exists
-        var organizer = await _userRepository.GetByIdAsync(_currentUserService.UserId.Value, cancellationToken);
-        if (organizer == null)
-        {
-            return Error.NotFound("Organizer not found");
-        }
+        // Get or create Domain User
+        var domainUserId = await _currentUserService.GetDomainUserIdAsync();
 
         // Create the event using the Domain's static factory method
         var eventResult = Event.Create(
@@ -57,7 +55,7 @@ public class CreateEventCommandHandler : IRequestHandler<CreateEventCommand, Err
             city: request.City,
             postalCode: request.PostalCode,
             country: request.Country,
-            organizerId: _currentUserService.UserId.Value,
+            organizerId: domainUserId.Value,
             contactPhoneNumber: request.ContactPhone,
             contactEmail: request.ContactEmail,
             specialInstructions: request.SpecialInstructions,
@@ -90,6 +88,9 @@ public class CreateEventCommandHandler : IRequestHandler<CreateEventCommand, Err
 
         // Save the event
         var createdEvent = await _eventRepository.AddAsync(newEvent, cancellationToken);
+        
+        // Save changes to database
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Invalidate cache
         await _cacheService.RemoveByPatternAsync("events:*", cancellationToken);
