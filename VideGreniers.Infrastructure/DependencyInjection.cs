@@ -54,7 +54,10 @@ public static class DependencyInjection
             })
             .AddEntityFrameworkStores<ApplicationDbContext>();
 
-        // Repositories
+        // Generic Repository (required for CQRS handlers)
+        services.AddScoped(typeof(Application.Common.Interfaces.IRepository<>), typeof(Repository<>));
+
+        // Specific Repositories (for custom methods not in generic interface)
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IEventRepository, EventRepository>();
         services.AddScoped<IFavoriteRepository, FavoriteRepository>();

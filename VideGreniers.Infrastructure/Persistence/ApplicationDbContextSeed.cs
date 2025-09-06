@@ -18,19 +18,35 @@ public static class ApplicationDbContextSeed
     {
         using var scope = serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<ApplicationRole>>();
+        
+        // Try to get Identity services (optional - they may not be configured yet)
+        var userManager = scope.ServiceProvider.GetService<UserManager<ApplicationUser>>();
+        var roleManager = scope.ServiceProvider.GetService<RoleManager<ApplicationRole>>();
+        
+        if (userManager == null || roleManager == null)
+        {
+            logger.LogInformation("Identity services not configured yet. Seeding basic data only.");
+        }
 
         try
         {
             // Ensure database is created
             await context.Database.EnsureCreatedAsync();
 
-            // Seed roles
-            await SeedRolesAsync(roleManager, logger);
+            // Seed roles (only if Identity is configured)
+            if (roleManager != null)
+            {
+                await SeedRolesAsync(roleManager, logger);
+            }
 
-            // Seed users and domain data
-            await SeedUsersAndDataAsync(context, userManager, logger, isDevelopment);
+            // Seed basic domain data (categories)
+            await SeedCategoriesAsync(context, logger);
+
+            // Seed users and events (only if Identity is configured)
+            if (userManager != null)
+            {
+                await SeedUsersAndDataAsync(context, userManager, logger, isDevelopment);
+            }
         }
         catch (Exception ex)
         {
@@ -109,6 +125,19 @@ public static class ApplicationDbContextSeed
         logger.LogInformation("Skipping test user creation");
 
         return users;
+    }
+
+    private static async Task SeedCategoriesAsync(ApplicationDbContext context, ILogger logger)
+    {
+        if (await context.Categories.AnyAsync())
+        {
+            logger.LogInformation("Categories already exist, skipping category seeding");
+            return;
+        }
+
+        var categories = await CreateCategoriesAsync(context, logger);
+        await context.SaveChangesAsync();
+        logger.LogInformation("Categories seeded successfully: {Count} categories created", categories.Count);
     }
 
     private static async Task<List<Category>> CreateCategoriesAsync(ApplicationDbContext context, ILogger logger)

@@ -4,6 +4,7 @@ using Serilog;
 using VideGreniers.API.Extensions;
 using VideGreniers.API.Middleware;
 using VideGreniers.API.Services;
+using VideGreniers.Application;
 using VideGreniers.Application.Common.Interfaces;
 using VideGreniers.Infrastructure;
 using VideGreniers.Infrastructure.Persistence;
@@ -35,6 +36,9 @@ builder.Services.AddSwaggerDocumentation();
 builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.Services.AddRateLimiting();
 
+// Add Application services (includes MediatR)
+builder.Services.AddApplication();
+
 // Add Infrastructure services
 builder.Services.AddInfrastructure(builder.Configuration);
 
@@ -53,9 +57,9 @@ if (app.Environment.IsDevelopment())
         logger.LogInformation("Applying database migrations...");
         await context.Database.MigrateAsync();
         
-        // Seed the database
-        logger.LogInformation("Seeding database...");
-        await ApplicationDbContextSeed.SeedAsync(scope.ServiceProvider, logger, isDevelopment: true);
+        // Seed the database (commented out temporarily to avoid seeding issues)
+        // logger.LogInformation("Seeding database...");
+        // await ApplicationDbContextSeed.SeedAsync(scope.ServiceProvider, logger, isDevelopment: true);
         
         logger.LogInformation("Database initialization completed successfully");
     }
@@ -85,11 +89,10 @@ app.UseMiddleware<ResponseCachingMiddleware>();
 
 app.UseHttpsRedirection();
 app.UseCors();
+app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();
-
-app.UseRouting();
 
 // Health check endpoints
 app.MapHealthChecks("/health");
