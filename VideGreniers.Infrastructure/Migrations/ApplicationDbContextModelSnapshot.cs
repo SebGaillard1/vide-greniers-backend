@@ -179,8 +179,7 @@ namespace VideGreniers.Infrastructure.Migrations
 
                     b.HasIndex("Name")
                         .IsUnique()
-                        .HasDatabaseName("IX_Categories_Name_Unique")
-                        .HasFilter("\"IsDeleted\" = false");
+                        .HasDatabaseName("IX_Categories_Name_Unique");
 
                     b.HasIndex("SortOrder")
                         .HasDatabaseName("IX_Categories_SortOrder");
@@ -199,9 +198,6 @@ namespace VideGreniers.Infrastructure.Migrations
                         .HasDefaultValue(false);
 
                     b.Property<Guid?>("CategoryId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("CategoryId1")
                         .HasColumnType("uuid");
 
                     b.Property<Guid?>("CreatedByUserId")
@@ -245,9 +241,6 @@ namespace VideGreniers.Infrastructure.Migrations
                     b.Property<Guid>("OrganizerId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("OrganizerId1")
-                        .HasColumnType("uuid");
-
                     b.Property<DateTime?>("PublishedOnUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -270,15 +263,11 @@ namespace VideGreniers.Infrastructure.Migrations
                     b.HasIndex("CategoryId")
                         .HasDatabaseName("IX_Events_CategoryId");
 
-                    b.HasIndex("CategoryId1");
-
                     b.HasIndex("IsDeleted")
                         .HasDatabaseName("IX_Events_IsDeleted");
 
                     b.HasIndex("OrganizerId")
                         .HasDatabaseName("IX_Events_OrganizerId");
-
-                    b.HasIndex("OrganizerId1");
 
                     b.HasIndex("PublishedOnUtc")
                         .HasDatabaseName("IX_Events_PublishedOnUtc");
@@ -339,9 +328,6 @@ namespace VideGreniers.Infrastructure.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("UserId1")
-                        .HasColumnType("uuid");
-
                     b.HasKey("Id");
 
                     b.HasIndex("CreatedOnUtc")
@@ -358,8 +344,6 @@ namespace VideGreniers.Infrastructure.Migrations
 
                     b.HasIndex("UserId")
                         .HasDatabaseName("IX_Favorites_UserId");
-
-                    b.HasIndex("UserId1");
 
                     b.HasIndex("UserId", "EventId")
                         .IsUnique()
@@ -620,24 +604,14 @@ namespace VideGreniers.Infrastructure.Migrations
             modelBuilder.Entity("VideGreniers.Domain.Entities.Event", b =>
                 {
                     b.HasOne("VideGreniers.Domain.Entities.Category", "Category")
-                        .WithMany()
+                        .WithMany("Events")
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("VideGreniers.Domain.Entities.Category", null)
-                        .WithMany("Events")
-                        .HasForeignKey("CategoryId1");
-
-                    b.HasOne("VideGreniers.Domain.Entities.User", null)
+                    b.HasOne("VideGreniers.Domain.Entities.User", "Organizer")
                         .WithMany("CreatedEvents")
                         .HasForeignKey("OrganizerId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("VideGreniers.Domain.Entities.User", "Organizer")
-                        .WithMany()
-                        .HasForeignKey("OrganizerId1")
-                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.OwnsOne("VideGreniers.Domain.ValueObjects.Email", "ContactEmail", b1 =>
@@ -848,15 +822,9 @@ namespace VideGreniers.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("VideGreniers.Domain.Entities.User", null)
+                    b.HasOne("VideGreniers.Domain.Entities.User", "User")
                         .WithMany("Favorites")
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("VideGreniers.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId1")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -894,6 +862,11 @@ namespace VideGreniers.Infrastructure.Migrations
                         {
                             b1.Property<Guid>("UserId")
                                 .HasColumnType("uuid");
+
+                            b1.Property<bool>("HasPhoneNumber")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("boolean")
+                                .HasDefaultValue(false);
 
                             b1.Property<string>("Value")
                                 .HasMaxLength(20)

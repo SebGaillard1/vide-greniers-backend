@@ -91,6 +91,7 @@ namespace VideGreniers.Infrastructure.Migrations
                     LastName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
                     Email = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
                     PhoneNumber = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
+                    PhoneNumber_HasPhoneNumber = table.Column<bool>(type: "boolean", nullable: true, defaultValue: false),
                     Role = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
                     LastLoginUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     IsEmailVerified = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false),
@@ -244,8 +245,6 @@ namespace VideGreniers.Infrastructure.Migrations
                     PublishedOnUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     OrganizerId = table.Column<Guid>(type: "uuid", nullable: false),
                     CategoryId = table.Column<Guid>(type: "uuid", nullable: true),
-                    OrganizerId1 = table.Column<Guid>(type: "uuid", nullable: false),
-                    CategoryId1 = table.Column<Guid>(type: "uuid", nullable: true),
                     CreatedOnUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "NOW()"),
                     ModifiedOnUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     CreatedByUserId = table.Column<Guid>(type: "uuid", nullable: true),
@@ -264,22 +263,11 @@ namespace VideGreniers.Infrastructure.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.SetNull);
                     table.ForeignKey(
-                        name: "FK_Events_Categories_CategoryId1",
-                        column: x => x.CategoryId1,
-                        principalTable: "Categories",
-                        principalColumn: "Id");
-                    table.ForeignKey(
                         name: "FK_Events_Users_OrganizerId",
                         column: x => x.OrganizerId,
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_Events_Users_OrganizerId1",
-                        column: x => x.OrganizerId1,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -292,7 +280,6 @@ namespace VideGreniers.Infrastructure.Migrations
                     Status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false, defaultValue: "Active"),
                     ArchivedOnUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     Notes = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
-                    UserId1 = table.Column<Guid>(type: "uuid", nullable: false),
                     CreatedOnUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "NOW()"),
                     ModifiedOnUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     CreatedByUserId = table.Column<Guid>(type: "uuid", nullable: true),
@@ -313,12 +300,6 @@ namespace VideGreniers.Infrastructure.Migrations
                     table.ForeignKey(
                         name: "FK_Favorites_Users_UserId",
                         column: x => x.UserId,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_Favorites_Users_UserId1",
-                        column: x => x.UserId1,
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -370,8 +351,7 @@ namespace VideGreniers.Infrastructure.Migrations
                 name: "IX_Categories_Name_Unique",
                 table: "Categories",
                 column: "Name",
-                unique: true,
-                filter: "\"IsDeleted\" = false");
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Categories_SortOrder",
@@ -384,14 +364,14 @@ namespace VideGreniers.Infrastructure.Migrations
                 column: "CategoryId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Events_CategoryId1",
-                table: "Events",
-                column: "CategoryId1");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_Events_IsDeleted",
                 table: "Events",
                 column: "IsDeleted");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Events_Location",
+                table: "Events",
+                columns: new[] { "Location_Latitude", "Location_Longitude" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Events_OrganizerId",
@@ -399,14 +379,14 @@ namespace VideGreniers.Infrastructure.Migrations
                 column: "OrganizerId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Events_OrganizerId1",
-                table: "Events",
-                column: "OrganizerId1");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_Events_PublishedOnUtc",
                 table: "Events",
                 column: "PublishedOnUtc");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Events_StartDate",
+                table: "Events",
+                column: "DateRange_StartDate");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Events_Status",
@@ -446,9 +426,10 @@ namespace VideGreniers.Infrastructure.Migrations
                 filter: "\"IsDeleted\" = false");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Favorites_UserId1",
-                table: "Favorites",
-                column: "UserId1");
+                name: "IX_Users_Email",
+                table: "Users",
+                column: "Email",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Users_IsActive",

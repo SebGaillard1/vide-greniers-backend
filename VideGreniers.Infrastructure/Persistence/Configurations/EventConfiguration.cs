@@ -195,7 +195,7 @@ public class EventConfiguration : IEntityTypeConfiguration<Event>
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(e => e.Category)
-            .WithMany() // Navigation not needed on Category
+            .WithMany(c => c.Events)
             .HasForeignKey(e => e.CategoryId)
             .OnDelete(DeleteBehavior.SetNull);
 

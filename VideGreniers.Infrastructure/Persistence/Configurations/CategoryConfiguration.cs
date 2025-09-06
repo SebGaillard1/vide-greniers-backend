@@ -58,7 +58,6 @@ public class CategoryConfiguration : IEntityTypeConfiguration<Category>
         // Indexes
         builder.HasIndex(c => c.Name)
             .IsUnique()
-            .HasFilter("\"IsDeleted\" = false")
             .HasDatabaseName("IX_Categories_Name_Unique");
 
         builder.HasIndex(c => c.IsActive)

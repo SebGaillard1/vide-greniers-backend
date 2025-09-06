@@ -45,6 +45,10 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
                 .HasColumnName("PhoneNumber")
                 .HasMaxLength(20)
                 .IsRequired(false);
+                
+            // Add a discriminator to identify when phone exists
+            phone.Property<bool>("HasPhoneNumber")
+                .HasDefaultValue(false);
         });
 
         builder.Property(u => u.Role)
@@ -91,16 +95,9 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.DeletedByUserId)
             .IsRequired(false);
 
-        // Relationships
-        builder.HasMany(u => u.CreatedEvents)
-            .WithOne() // No back navigation
-            .HasForeignKey("OrganizerId")
-            .OnDelete(DeleteBehavior.Restrict); // Don't cascade delete events
-
-        builder.HasMany(u => u.Favorites)
-            .WithOne() // No back navigation
-            .HasForeignKey("UserId")
-            .OnDelete(DeleteBehavior.Cascade); // Delete favorites when user is deleted
+        // Note: Relationships are configured in the dependent entity configurations
+        // Event -> User relationship configured in EventConfiguration
+        // Favorite -> User relationship configured in FavoriteConfiguration
 
         // Indexes
         builder.HasIndex(u => u.Role)
