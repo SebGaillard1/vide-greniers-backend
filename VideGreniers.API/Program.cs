@@ -57,9 +57,9 @@ if (app.Environment.IsDevelopment())
         logger.LogInformation("Applying database migrations...");
         await context.Database.MigrateAsync();
         
-        // Seed the database (commented out temporarily to avoid seeding issues)
-        // logger.LogInformation("Seeding database...");
-        // await ApplicationDbContextSeed.SeedAsync(scope.ServiceProvider, logger, isDevelopment: true);
+        // Seed the database
+        logger.LogInformation("Seeding database...");
+        await ApplicationDbContextSeed.SeedAsync(scope.ServiceProvider, logger, isDevelopment: true);
         
         logger.LogInformation("Database initialization completed successfully");
     }
