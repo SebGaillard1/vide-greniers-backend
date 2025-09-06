@@ -98,8 +98,8 @@ public static class ApplicationDbContextSeed
         // Create test users
         var users = await CreateTestUsersAsync(context, userManager, logger, isDevelopment);
         
-        // Create categories
-        var categories = await CreateCategoriesAsync(context, logger);
+        // Create categories (only if they don't exist)
+        var categories = await EnsureCategoriesAsync(context, logger);
         
         // Create test events
         await CreateTestEventsAsync(context, users, categories, logger, isDevelopment);
@@ -111,7 +111,7 @@ public static class ApplicationDbContextSeed
         logger.LogInformation("Database seeding completed successfully");
     }
 
-    private static async Task<List<User>> CreateTestUsersAsync(
+    private static Task<List<User>> CreateTestUsersAsync(
         ApplicationDbContext context,
         UserManager<ApplicationUser> userManager,
         ILogger logger,
@@ -119,12 +119,12 @@ public static class ApplicationDbContextSeed
     {
         var users = new List<User>();
         
-        if (!isDevelopment) return users;
+        if (!isDevelopment) return Task.FromResult(users);
 
         // No test users in simplified version
         logger.LogInformation("Skipping test user creation");
 
-        return users;
+        return Task.FromResult(users);
     }
 
     private static async Task SeedCategoriesAsync(ApplicationDbContext context, ILogger logger)
@@ -140,28 +140,55 @@ public static class ApplicationDbContextSeed
         logger.LogInformation("Categories seeded successfully: {Count} categories created", categories.Count);
     }
 
-    private static async Task<List<Category>> CreateCategoriesAsync(ApplicationDbContext context, ILogger logger)
+    private static async Task<List<Category>> EnsureCategoriesAsync(ApplicationDbContext context, ILogger logger)
     {
-        var categories = new[]
-        {
-            Category.Create("Vêtements", "Vêtements adultes et enfants", CategoryType.General, "shirt", "#FF6B6B", 1),
-            Category.Create("Livres", "Livres, BD, magazines", CategoryType.General, "book", "#4ECDC4", 2),
-            Category.Create("Jouets", "Jouets et jeux pour enfants", CategoryType.General, "toy", "#45B7D1", 3),
-            Category.Create("Électroménager", "Appareils électroménagers", CategoryType.General, "appliance", "#96CEB4", 4),
-            Category.Create("Mobilier", "Meubles et décoration", CategoryType.General, "furniture", "#FFEAA7", 5),
-            Category.Create("Divers", "Objets divers", CategoryType.General, "misc", "#DDA0DD", 6)
-        }.Select(result => result.IsError ? null : result.Value)
-         .Where(c => c != null)
-         .Cast<Category>()
-         .ToList();
-
-        context.Categories.AddRange(categories);
-        logger.LogInformation("Created {Count} categories", categories.Count);
+        // Check if categories already exist
+        var existingCategories = await context.Categories.ToListAsync();
         
-        return categories;
+        if (existingCategories.Count > 0)
+        {
+            logger.LogInformation("Categories already exist, using existing categories: {Count} found", existingCategories.Count);
+            return existingCategories;
+        }
+
+        // Create new categories if none exist
+        return await CreateCategoriesAsync(context, logger);
     }
 
-    private static async Task CreateTestEventsAsync(
+    private static Task<List<Category>> CreateCategoriesAsync(ApplicationDbContext context, ILogger logger)
+    {
+        var categoryData = new[]
+        {
+            ("Vêtements", "Vêtements adultes et enfants", "shirt", "#FF6B6B", 1),
+            ("Livres", "Livres, BD, magazines", "book", "#4ECDC4", 2),
+            ("Jouets", "Jouets et jeux pour enfants", "toy", "#45B7D1", 3),
+            ("Électroménager", "Appareils électroménagers", "appliance", "#96CEB4", 4),
+            ("Mobilier", "Meubles et décoration", "furniture", "#FFEAA7", 5),
+            ("Divers", "Objets divers", "misc", "#DDA0DD", 6)
+        };
+
+        var categories = new List<Category>();
+
+        foreach (var (name, description, icon, color, order) in categoryData)
+        {
+            var categoryResult = Category.Create(name, description, CategoryType.General, icon, color, order);
+            if (!categoryResult.IsError)
+            {
+                categories.Add(categoryResult.Value);
+            }
+            else
+            {
+                logger.LogWarning("Failed to create category {Name}: {Errors}", name, string.Join(", ", categoryResult.Errors.Select(e => e.Description)));
+            }
+        }
+
+        context.Categories.AddRange(categories);
+        logger.LogInformation("Created {Count} new categories", categories.Count);
+        
+        return Task.FromResult(categories);
+    }
+
+    private static Task CreateTestEventsAsync(
         ApplicationDbContext context,
         List<User> users,
         List<Category> categories,
@@ -170,10 +197,10 @@ public static class ApplicationDbContextSeed
     {
         // Simplified - no test events
         logger.LogInformation("Skipping test events creation");
-        await Task.CompletedTask;
+        return Task.CompletedTask;
     }
 
-    private static async Task CreateTestFavoritesAsync(
+    private static Task CreateTestFavoritesAsync(
         ApplicationDbContext context,
         List<User> users,
         ILogger logger,
@@ -181,6 +208,6 @@ public static class ApplicationDbContextSeed
     {
         // Simplified - no test favorites
         logger.LogInformation("Skipping test favorites creation");
-        await Task.CompletedTask;
+        return Task.CompletedTask;
     }
 }

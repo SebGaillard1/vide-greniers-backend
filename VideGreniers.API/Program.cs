@@ -116,11 +116,26 @@ if (app.Environment.IsDevelopment())
         
         try
         {
-            // Clear existing data
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             
             logger.LogInformation("Clearing existing data...");
-            await context.Database.ExecuteSqlRawAsync("TRUNCATE TABLE \"Favorites\", \"Events\", \"Categories\", \"AspNetUsers\", \"AspNetRoles\", \"Users\" RESTART IDENTITY CASCADE");
+            
+            // Delete data in correct order to respect foreign key constraints
+            await context.Database.ExecuteSqlRawAsync("DELETE FROM \"Favorites\"");
+            await context.Database.ExecuteSqlRawAsync("DELETE FROM \"Events\"");
+            await context.Database.ExecuteSqlRawAsync("DELETE FROM \"Users\"");
+            await context.Database.ExecuteSqlRawAsync("DELETE FROM \"Categories\"");
+            await context.Database.ExecuteSqlRawAsync("DELETE FROM \"AspNetUserRoles\"");
+            await context.Database.ExecuteSqlRawAsync("DELETE FROM \"AspNetUsers\"");
+            await context.Database.ExecuteSqlRawAsync("DELETE FROM \"AspNetRoles\"");
+            
+            // Reset identity sequences if needed
+            await context.Database.ExecuteSqlRawAsync("ALTER SEQUENCE IF EXISTS \"Categories_Id_seq\" RESTART WITH 1");
+            await context.Database.ExecuteSqlRawAsync("ALTER SEQUENCE IF EXISTS \"Events_Id_seq\" RESTART WITH 1");
+            await context.Database.ExecuteSqlRawAsync("ALTER SEQUENCE IF EXISTS \"Users_Id_seq\" RESTART WITH 1");
+            await context.Database.ExecuteSqlRawAsync("ALTER SEQUENCE IF EXISTS \"Favorites_Id_seq\" RESTART WITH 1");
+            
+            logger.LogInformation("Data cleared successfully");
             
             // Re-seed
             logger.LogInformation("Re-seeding database...");
@@ -131,7 +146,7 @@ if (app.Environment.IsDevelopment())
         catch (Exception ex)
         {
             logger.LogError(ex, "Error occurred while re-seeding database");
-            return Results.Problem("An error occurred while re-seeding the database");
+            return Results.Problem($"An error occurred while re-seeding the database: {ex.Message}");
         }
     })
     .WithName("SeedDatabase")

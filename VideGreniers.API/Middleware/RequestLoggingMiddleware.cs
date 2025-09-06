@@ -53,8 +53,11 @@ public class RequestLoggingMiddleware
                 stopwatch.ElapsedMilliseconds,
                 correlationId);
 
-            // Add response time header
-            context.Response.Headers.TryAdd("X-Response-Time-Ms", stopwatch.ElapsedMilliseconds.ToString());
+            // Add response time header (only if response hasn't started)
+            if (!context.Response.HasStarted)
+            {
+                context.Response.Headers.TryAdd("X-Response-Time-Ms", stopwatch.ElapsedMilliseconds.ToString());
+            }
 
             // Log slow requests
             if (stopwatch.ElapsedMilliseconds > 1000)
