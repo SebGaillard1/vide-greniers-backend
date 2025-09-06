@@ -1034,6 +1034,47 @@ X-RateLimit-Reset: 1693920000
 
 ## 📱 iOS Development Tips
 
+### 🔧 Local Development Configuration
+
+#### Backend API Setup
+Pour éviter les problèmes de certificats SSL avec localhost en développement :
+
+```bash
+# Démarrer l'API en HTTP uniquement (recommandé pour le développement iOS)
+cd VideGreniers.API
+dotnet run --urls "http://localhost:5029"
+```
+
+#### iOS Info.plist Configuration
+Ajoutez cette configuration à votre `Info.plist` pour autoriser HTTP en développement :
+
+```xml
+<key>NSAppTransportSecurity</key>
+<dict>
+    <key>NSExceptionDomains</key>
+    <dict>
+        <key>localhost</key>
+        <dict>
+            <key>NSExceptionAllowsInsecureHTTPLoads</key>
+            <true/>
+            <key>NSExceptionMinimumTLSVersion</key>
+            <string>TLSv1.0</string>
+            <key>NSExceptionRequiresForwardSecrecy</key>
+            <false/>
+        </dict>
+    </dict>
+</dict>
+```
+
+#### URL de base pour le développement
+```swift
+#if DEBUG
+let baseURL = "http://localhost:5029/api"
+#else
+let baseURL = "https://api.videgreniers.com/api"
+#endif
+```
+
 ### Networking Best Practices
 1. Utilisez `async/await` pour les appels API
 2. Implémentez un système de cache avec `NSCache`

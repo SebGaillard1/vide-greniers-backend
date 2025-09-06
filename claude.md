@@ -65,6 +65,15 @@ dotnet add src/VideGreniers.Application package MediatR
 dotnet restore
 ```
 
+### iOS Development Commands
+```bash
+# Run API for iOS development (HTTP only, no HTTPS redirection)
+dotnet run --project src/VideGreniers.API --urls "http://localhost:5029"
+
+# Or use the dedicated iOS development profile
+dotnet run --project src/VideGreniers.API --launch-profile ios-dev
+```
+
 ## Code Style Guidelines
 
 ### General C# Conventions
