@@ -87,10 +87,11 @@ public class AuthController : ApiController
     public IActionResult GetCurrentUser()
     {
         var userId = GetCurrentUserId();
-        var userEmail = User.FindFirst("email")?.Value;
+        var userEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? 
+                        User.FindFirst("email")?.Value;
         var firstName = User.FindFirst("firstName")?.Value;
         var lastName = User.FindFirst("lastName")?.Value;
-        var roles = User.Claims.Where(c => c.Type == "role").Select(c => c.Value).ToList();
+        var roles = User.Claims.Where(c => c.Type == System.Security.Claims.ClaimTypes.Role || c.Type == "role").Select(c => c.Value).ToList();
 
         var userInfo = new
         {
@@ -99,7 +100,8 @@ public class AuthController : ApiController
             FirstName = firstName,
             LastName = lastName,
             Roles = roles,
-            IsAuthenticated = true
+            IsAuthenticated = true,
+            CreatedOnUtc = DateTime.UtcNow // Adding this field that iOS expects
         };
 
         return Ok(new ApiResponse<object>
