@@ -35,6 +35,8 @@ public static class DependencyInjection
                         errorCodesToAdd: null);
                 }));
 
+        services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<ApplicationDbContext>());
+
         // JWT Settings Configuration - temporary manual configuration
         services.Configure<JwtSettings>(options =>
         {
@@ -87,6 +89,7 @@ public static class DependencyInjection
         services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
         services.AddMemoryCache();
         services.AddSingleton<ICacheService, CacheService>();
+        services.AddScoped<IUserActivityService, UserActivityService>();
 
         // Redis (optional, only if connection string is provided)
         var redisConnectionString = configuration.GetConnectionString("Redis");

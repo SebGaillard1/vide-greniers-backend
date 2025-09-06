@@ -7,7 +7,7 @@ using VideGreniers.Infrastructure.Identity;
 
 namespace VideGreniers.Infrastructure.Persistence;
 
-public class ApplicationDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, Guid>
+public class ApplicationDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, Guid>, IApplicationDbContext
 {
     private readonly IDateTimeProvider? _dateTimeProvider;
 
@@ -29,6 +29,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
     public DbSet<Event> Events { get; set; } = null!;
     public DbSet<Favorite> Favorites { get; set; } = null!;
     public DbSet<Category> Categories { get; set; } = null!;
+    public DbSet<Notification> Notifications { get; set; } = null!;
+    public DbSet<UserActivity> UserActivities { get; set; } = null!;
 
     // Identity-related entities
     public DbSet<RefreshToken> RefreshTokens { get; set; } = null!;

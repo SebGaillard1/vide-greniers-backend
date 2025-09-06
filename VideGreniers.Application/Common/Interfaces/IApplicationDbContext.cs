@@ -12,6 +12,8 @@ public interface IApplicationDbContext
     DbSet<Event> Events { get; }
     DbSet<Favorite> Favorites { get; }
     DbSet<Category> Categories { get; }
+    DbSet<Notification> Notifications { get; }
+    DbSet<UserActivity> UserActivities { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

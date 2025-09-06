@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using VideGreniers.API.Common;
 using VideGreniers.Application.Common.DTOs;
+using VideGreniers.Application.Common.Interfaces;
 using VideGreniers.Application.Common.Models;
 using VideGreniers.Application.Events.Commands.CancelEvent;
 using VideGreniers.Application.Events.Commands.CreateEvent;
@@ -11,6 +12,7 @@ using VideGreniers.Application.Events.Commands.UpdateEvent;
 using VideGreniers.Application.Events.Queries.GetEventById;
 using VideGreniers.Application.Events.Queries.GetNearbyEvents;
 using VideGreniers.Application.Events.Queries.SearchEvents;
+using VideGreniers.Domain.Enums;
 
 namespace VideGreniers.API.Controllers;
 
@@ -20,6 +22,12 @@ namespace VideGreniers.API.Controllers;
 [Tags("Events")]
 public class EventsController : ApiController
 {
+    private readonly IUserActivityService _userActivityService;
+
+    public EventsController(IUserActivityService userActivityService)
+    {
+        _userActivityService = userActivityService;
+    }
     /// <summary>
     /// Get paginated list of events with optional filters
     /// </summary>
@@ -117,6 +125,23 @@ public class EventsController : ApiController
 
         // Add cache headers
         Response.Headers.CacheControl = "public, max-age=600"; // 10 minutes
+
+        // Track event view activity for authenticated users
+        var userId = GetCurrentUserId();
+        if (!string.IsNullOrEmpty(userId) && Guid.TryParse(userId, out var userGuid))
+        {
+            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var userAgent = Request.Headers.UserAgent.ToString();
+            
+            _userActivityService.TrackActivityAsync(
+                userGuid, 
+                UserActivityType.EventViewed, 
+                id, 
+                null, 
+                null, 
+                ipAddress, 
+                userAgent);
+        }
 
         return HandleResult(result);
     }
@@ -239,6 +264,17 @@ public class EventsController : ApiController
         var result = await Mediator.Send(command);
 
         return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Get current user ID from claims
+    /// </summary>
+    private string GetCurrentUserId()
+    {
+        return User.FindFirst("sub")?.Value ?? 
+               User.FindFirst("id")?.Value ?? 
+               User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? 
+               string.Empty;
     }
 }
 
