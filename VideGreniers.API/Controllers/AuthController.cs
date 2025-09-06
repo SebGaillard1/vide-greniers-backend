@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using VideGreniers.API.Common;
+using VideGreniers.Application.Authentication.Commands.AppleLogin;
+using VideGreniers.Application.Authentication.Commands.GoogleLogin;
 using VideGreniers.Application.Authentication.Commands.Login;
 using VideGreniers.Application.Authentication.Commands.Logout;
 using VideGreniers.Application.Authentication.Commands.RefreshToken;
@@ -112,19 +114,32 @@ public class AuthController : ApiController
     /// OAuth login with Google
     /// </summary>
     [HttpPost("oauth/google")]
+    [EnableRateLimiting("AuthPolicy")]
     public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequest request)
     {
-        // TODO: Implement Google OAuth login
-        // This would use the GoogleAuthService to validate the token
-        // and create or find the user account
-        
-        return BadRequest(new ApiResponse<object>
-        {
-            Data = null,
-            Success = false,
-            Errors = ["Google OAuth login not yet implemented"],
-            Timestamp = DateTime.UtcNow
-        });
+        var command = new GoogleLoginCommand(
+            request.IdToken,
+            GetDeviceInfo());
+
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// OAuth login with Apple Sign In
+    /// </summary>
+    [HttpPost("oauth/apple")]
+    [EnableRateLimiting("AuthPolicy")]
+    public async Task<IActionResult> AppleLogin([FromBody] AppleLoginRequest request)
+    {
+        var command = new AppleLoginCommand(
+            request.IdentityToken,
+            request.UserFirstName,
+            request.UserLastName,
+            GetDeviceInfo());
+
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
     }
 
     /// <summary>
@@ -181,3 +196,11 @@ public record LogoutRequest(string RefreshToken);
 /// Google login request DTO
 /// </summary>
 public record GoogleLoginRequest(string IdToken);
+
+/// <summary>
+/// Apple login request DTO
+/// </summary>
+public record AppleLoginRequest(
+    string IdentityToken,
+    string? UserFirstName = null,
+    string? UserLastName = null);

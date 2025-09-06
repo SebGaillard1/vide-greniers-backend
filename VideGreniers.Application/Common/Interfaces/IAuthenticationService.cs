@@ -1,5 +1,6 @@
 using ErrorOr;
 using VideGreniers.Application.Authentication.Models;
+using VideGreniers.Application.Common.Interfaces;
 
 namespace VideGreniers.Application.Common.Interfaces;
 
@@ -61,4 +62,18 @@ public interface IAuthenticationService
     /// <param name="email">Email to check</param>
     /// <returns>True if exists</returns>
     Task<bool> EmailExistsAsync(string email);
+
+    /// <summary>
+    /// Authenticate user with Google OAuth
+    /// </summary>
+    /// <param name="googleUserInfo">Google user information from token validation</param>
+    /// <returns>Authentication result</returns>
+    Task<ErrorOr<AuthenticationResult>> GoogleLoginAsync(GoogleUserInfo googleUserInfo);
+
+    /// <summary>
+    /// Authenticate user with Apple Sign In
+    /// </summary>
+    /// <param name="appleUserInfo">Apple user information from token validation</param>
+    /// <returns>Authentication result</returns>
+    Task<ErrorOr<AuthenticationResult>> AppleLoginAsync(AppleUserInfo appleUserInfo);
 }

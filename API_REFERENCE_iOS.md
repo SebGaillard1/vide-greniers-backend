@@ -40,16 +40,22 @@
   "data": {
     "accessToken": "eyJhbGciOiJIUzI1NiIs...",
     "refreshToken": "def502004a1b2c3d...",
-    "expiresIn": 900, // 15 minutes
+    "expiresIn": 3599, // 15 minutes (in seconds)
     "user": {
-      "id": "uuid",
-      "email": "user@example.com",
+      "id": "0d55297b-f527-48cb-9b2f-cd638c69edb1",
       "firstName": "John",
-      "lastName": "Doe"
+      "lastName": "Doe",
+      "email": "user@example.com",
+      "phoneNumber": null,
+      "createdOnUtc": "2025-09-06T16:18:09Z",
+      "modifiedOnUtc": "2025-09-06T16:18:09Z",
+      "fullName": "John Doe",
+      "createdEventsCount": 0,
+      "favoritesCount": 0
     }
   },
   "success": true,
-  "timestamp": "2023-09-06T13:00:00Z"
+  "timestamp": "2025-09-06T16:18:09Z"
 }
 ```
 
@@ -65,6 +71,10 @@
 ```
 
 **Response:** Same as register
+
+**Note:** The `AuthResponse` now includes:
+- `expiresIn`: Token expiration time in seconds (instead of absolute expiration date)
+- `user`: Complete user object with all properties including statistics
 
 #### 3. Refresh Token
 **POST** `/api/auth/refresh`
@@ -107,8 +117,44 @@
 }
 ```
 
-#### 6. Google OAuth (Coming Soon)
+#### 6. Google OAuth
 **POST** `/api/auth/oauth/google`
+
+**Request:**
+```json
+{
+  "idToken": "eyJhbGciOiJSUzI1NiIs..."
+}
+```
+
+**Response:** Same as register/login response
+
+**Notes:**
+- Use Google Sign-In SDK to get the `idToken`
+- Token is validated against Google's public keys
+- Creates a new user account if the email doesn't exist
+- Links to existing account if email matches
+
+#### 7. Apple Sign In
+**POST** `/api/auth/oauth/apple`
+
+**Request:**
+```json
+{
+  "identityToken": "eyJraWQiOiJmaDZCcz...",
+  "userFirstName": "John",    // Optional, only sent on first sign-in
+  "userLastName": "Doe"       // Optional, only sent on first sign-in
+}
+```
+
+**Response:** Same as register/login response
+
+**Notes:**
+- Use `ASAuthorizationAppleIDProvider` to get the identity token
+- `userFirstName` and `userLastName` are only provided by Apple on first sign-in
+- Token is validated against Apple's public keys
+- Creates new user account if email doesn't exist
+- Links to existing account if email matches
 
 ---
 
@@ -149,8 +195,8 @@
         "latitude": 46.2057,
         "longitude": 5.2281
       },
-      "startDate": "2023-09-15T08:00:00Z",
-      "endDate": "2023-09-15T18:00:00Z",
+      "startDate": "2025-09-15T08:00:00Z",
+      "endDate": "2025-09-15T18:00:00Z",
       "status": 1, // Published
       "eventType": 1, // FleaMarket
       "contactEmail": "contact@mairie-village.fr",
@@ -162,9 +208,9 @@
       "earlyBirdTime": "07:30:00",
       "earlyBirdFeeAmount": 5.00,
       "earlyBirdFeeCurrency": "EUR",
-      "publishedOnUtc": "2023-09-01T10:00:00Z",
-      "createdOnUtc": "2023-08-25T14:30:00Z",
-      "modifiedOnUtc": "2023-09-01T10:00:00Z",
+      "publishedOnUtc": "2025-09-01T10:00:00Z",
+      "createdOnUtc": "2025-08-25T14:30:00Z",
+      "modifiedOnUtc": "2025-09-01T10:00:00Z",
       "organizerName": "Mairie du Village",
       "categoryName": "Brocante",
       "categoryIcon": "🏛️",
@@ -327,8 +373,8 @@
     "lastName": "Doe", 
     "email": "john.doe@example.com",
     "phoneNumber": "+33123456789",
-    "createdOnUtc": "2023-01-15T10:30:00Z",
-    "modifiedOnUtc": "2023-08-20T14:20:00Z",
+    "createdOnUtc": "2025-01-15T10:30:00Z",
+    "modifiedOnUtc": "2025-08-20T14:20:00Z",
     "fullName": "John Doe",
     "createdEventsCount": 3,
     "favoritesCount": 12
@@ -366,8 +412,8 @@
     "totalEventsCreated": 3,
     "totalNotifications": 25,
     "unreadNotifications": 4,
-    "accountCreatedDate": "2023-01-15T10:30:00Z",
-    "lastLoginDate": "2023-09-06T08:15:00Z",
+    "accountCreatedDate": "2025-01-15T10:30:00Z",
+    "lastLoginDate": "2025-09-06T08:15:00Z",
     "daysActive": 234
   },
   "success": true
@@ -741,6 +787,26 @@ enum UserActivityType: Int, Codable, CaseIterable {
 
 ## 📡 API Response Format
 
+### Date Format
+**Important:** All dates in the API are formatted in ISO 8601 format without microseconds for iOS compatibility:
+```
+Format: yyyy-MM-ddTHH:mm:ssZ
+Example: "2025-09-06T16:18:09Z"
+```
+
+This format is fully compatible with Swift's `ISO8601DateFormatter` and can be decoded automatically by `JSONDecoder` with the appropriate date decoding strategy.
+
+#### Swift Date Decoding Configuration
+```swift
+let decoder = JSONDecoder()
+decoder.dateDecodingStrategy = .iso8601
+
+// The API's date format is compatible with the default ISO8601 strategy
+let response = try decoder.decode(APIResponse<AuthResponse>.self, from: data)
+```
+
+**No custom date formatters needed!** The API now returns dates in a format that's natively supported by Swift's JSON decoding.
+
 ### Standard Response
 ```swift
 struct ApiResponse<T: Codable>: Codable {
@@ -852,10 +918,115 @@ class APIClient {
 
 ## 🍎 iOS-Specific Notes
 
-### Sign in with Apple Integration
-- OAuth endpoint en préparation: `/api/auth/oauth/apple`
-- Utilisez `ASAuthorizationAppleIDProvider` côté iOS
-- Envoyez l'`identityToken` au backend pour validation
+### OAuth Authentication Integration
+
+#### Google Sign-In Integration
+```swift
+import GoogleSignIn
+
+// Configuration in AppDelegate or App struct
+guard let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
+      let plist = NSDictionary(contentsOfFile: path),
+      let clientId = plist["CLIENT_ID"] as? String else {
+    fatalError("Missing GoogleService-Info.plist")
+}
+
+GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientId)
+
+// Sign-in process
+func signInWithGoogle() {
+    guard let presentingViewController = UIApplication.shared.windows.first?.rootViewController else { return }
+    
+    GIDSignIn.sharedInstance.signIn(withPresenting: presentingViewController) { result, error in
+        if let error = error {
+            print("Google Sign-In Error: \(error)")
+            return
+        }
+        
+        guard let user = result?.user,
+              let idToken = user.idToken?.tokenString else {
+            print("Failed to get Google ID token")
+            return
+        }
+        
+        // Send to your backend
+        Task {
+            await authenticateWithGoogle(idToken: idToken)
+        }
+    }
+}
+
+// API call
+func authenticateWithGoogle(idToken: String) async {
+    let request = GoogleLoginRequest(idToken: idToken)
+    // Make POST request to /api/auth/oauth/google
+}
+```
+
+#### Apple Sign-In Integration
+```swift
+import AuthenticationServices
+
+class AppleSignInCoordinator: NSObject, ASAuthorizationControllerDelegate {
+    func signInWithApple() {
+        let request = ASAuthorizationAppleIDProvider().createRequest()
+        request.requestedScopes = [.fullName, .email]
+        
+        let controller = ASAuthorizationController(authorizationRequests: [request])
+        controller.delegate = self
+        controller.presentationContextProvider = self
+        controller.performRequests()
+    }
+    
+    func authorizationController(controller: ASAuthorizationController, 
+                               didCompleteWithAuthorization authorization: ASAuthorization) {
+        if let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential {
+            let identityToken = String(data: appleIDCredential.identityToken!, encoding: .utf8)!
+            let firstName = appleIDCredential.fullName?.givenName
+            let lastName = appleIDCredential.fullName?.familyName
+            
+            Task {
+                await authenticateWithApple(
+                    identityToken: identityToken,
+                    firstName: firstName,
+                    lastName: lastName
+                )
+            }
+        }
+    }
+}
+
+// API call
+func authenticateWithApple(identityToken: String, firstName: String?, lastName: String?) async {
+    let request = AppleLoginRequest(
+        identityToken: identityToken,
+        userFirstName: firstName,
+        userLastName: lastName
+    )
+    // Make POST request to /api/auth/oauth/apple
+}
+```
+
+#### OAuth Request/Response Models
+```swift
+struct GoogleLoginRequest: Codable {
+    let idToken: String
+}
+
+struct AppleLoginRequest: Codable {
+    let identityToken: String
+    let userFirstName: String?
+    let userLastName: String?
+}
+
+// Response is the same as regular login/register
+struct AuthenticationResult: Codable {
+    let accessToken: String
+    let refreshToken: String
+    let expiresIn: Int
+    let user: UserDto
+}
+```
 
 ### MapKit Integration
 ```swift
@@ -1103,4 +1274,17 @@ let baseURL = "https://api.videgreniers.com/api"
 
 ---
 
-*Document généré le 6 septembre 2023 pour l'API VideGreniers v1.0*
+*Document mis à jour le 6 septembre 2025 pour l'API VideGreniers v1.2*
+
+## 📋 Changelog v1.2
+- **OAuth Authentication**: Ajout des endpoints complets pour Google Sign-In et Apple Sign-In
+  - `POST /api/auth/oauth/google` - Authentification via Google ID Token
+  - `POST /api/auth/oauth/apple` - Authentification via Apple Identity Token
+- **OAuth Integration**: Documentation complète pour l'intégration iOS avec exemples de code
+- **User Management**: Les comptes OAuth créent automatiquement les utilisateurs Domain et Identity
+- **Token Validation**: Validation sécurisée des tokens contre les clés publiques Google/Apple
+
+## 📋 Changelog v1.1
+- **Date Format**: Tous les dates sont maintenant au format ISO 8601 sans microsecondes (`yyyy-MM-ddTHH:mm:ssZ`) pour une compatibilité native avec iOS
+- **AuthResponse**: Nouvelle structure avec `expiresIn` (en secondes) et objet `user` complet incluant toutes les statistiques
+- **iOS Compatibility**: Format JSON optimisé pour le décodage automatique avec `JSONDecoder.dateDecodingStrategy = .iso8601`

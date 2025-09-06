@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 using VideGreniers.Application.Common.Interfaces;
@@ -83,6 +84,8 @@ public static class DependencyInjection
         // Authentication Services
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IGoogleAuthService, GoogleAuthService>();
+        services.AddScoped<IAppleAuthService, AppleAuthService>();
+        services.AddHttpClient<AppleAuthService>(); // HttpClient for fetching Apple public keys
         services.AddScoped<IAuthenticationService, Services.AuthenticationService>();
 
         // Services
