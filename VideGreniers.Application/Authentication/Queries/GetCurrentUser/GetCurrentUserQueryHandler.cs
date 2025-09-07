@@ -40,12 +40,19 @@ public class GetCurrentUserQueryHandler : IRequestHandler<GetCurrentUserQuery, E
     public async Task<ErrorOr<UserDto>> Handle(GetCurrentUserQuery request, CancellationToken cancellationToken)
     {
         // Validate user is authenticated
-        if (!_currentUserService.IsAuthenticated || !_currentUserService.UserId.HasValue)
+        if (!_currentUserService.IsAuthenticated)
         {
             return Error.Unauthorized("User must be authenticated");
         }
 
-        var userId = _currentUserService.UserId.Value;
+        // Get the domain user ID (from Users table) using the AspNetUsers ID
+        var domainUserId = await _currentUserService.GetDomainUserIdAsync();
+        if (!domainUserId.HasValue)
+        {
+            return Error.NotFound("User not found");
+        }
+
+        var userId = domainUserId.Value;
 
         // Get user from domain repository
         var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
@@ -54,8 +61,14 @@ public class GetCurrentUserQueryHandler : IRequestHandler<GetCurrentUserQuery, E
             return Error.NotFound("User not found");
         }
 
-        // Get user roles from authentication service
-        var rolesResult = await _authenticationService.GetUserRolesAsync(userId);
+        // Get user roles from authentication service using AspNetUsers ID
+        var aspectUserId = _currentUserService.UserId;
+        if (!aspectUserId.HasValue)
+        {
+            return Error.Unauthorized("User ID not found in claims");
+        }
+        
+        var rolesResult = await _authenticationService.GetUserRolesAsync(aspectUserId.Value);
         if (rolesResult.IsError)
         {
             return rolesResult.Errors;
