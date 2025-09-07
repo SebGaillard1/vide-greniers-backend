@@ -30,6 +30,8 @@ builder.Services.AddControllers()
         // Configure date format to be compatible with iOS
         options.JsonSerializerOptions.Converters.Add(new VideGreniers.API.Common.DateTimeJsonConverter());
         options.JsonSerializerOptions.Converters.Add(new VideGreniers.API.Common.NullableDateTimeJsonConverter());
+        options.JsonSerializerOptions.Converters.Add(new VideGreniers.API.Common.DateTimeOffsetJsonConverter());
+        options.JsonSerializerOptions.Converters.Add(new VideGreniers.API.Common.NullableDateTimeOffsetJsonConverter());
         options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
     });
