@@ -8,6 +8,7 @@ using VideGreniers.Application.Authentication.Commands.Login;
 using VideGreniers.Application.Authentication.Commands.Logout;
 using VideGreniers.Application.Authentication.Commands.RefreshToken;
 using VideGreniers.Application.Authentication.Commands.Register;
+using VideGreniers.Application.Authentication.Queries.GetCurrentUser;
 
 namespace VideGreniers.API.Controllers;
 
@@ -84,37 +85,11 @@ public class AuthController : ApiController
     /// </summary>
     [HttpGet("me")]
     [Authorize]
-    public IActionResult GetCurrentUser()
+    public async Task<IActionResult> GetCurrentUser()
     {
-        var userId = GetCurrentUserId();
-        var userEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? 
-                        User.FindFirst("email")?.Value;
-        var firstName = User.FindFirst("firstName")?.Value;
-        var lastName = User.FindFirst("lastName")?.Value;
-        var roles = User.Claims.Where(c => c.Type == System.Security.Claims.ClaimTypes.Role || c.Type == "role").Select(c => c.Value).ToList();
-
-        var userInfo = new
-        {
-            Id = userId,
-            Email = userEmail,
-            FirstName = firstName,
-            LastName = lastName,
-            FullName = $"{firstName} {lastName}".Trim(),
-            PhoneNumber = (string?)null, // Not available in claims
-            CreatedOnUtc = DateTime.UtcNow, // Adding this field that iOS expects
-            ModifiedOnUtc = (DateTime?)null, // Not tracked in claims
-            CreatedEventsCount = 0, // Would need database query to get actual count
-            FavoritesCount = 0, // Would need database query to get actual count
-            Roles = roles,
-            IsAuthenticated = true
-        };
-
-        return Ok(new ApiResponse<object>
-        {
-            Data = userInfo,
-            Success = true,
-            Timestamp = DateTime.UtcNow
-        });
+        var query = new GetCurrentUserQuery();
+        var result = await Mediator.Send(query);
+        return HandleResult(result);
     }
 
     /// <summary>
@@ -159,16 +134,6 @@ public class AuthController : ApiController
         return $"{userAgent} - {ipAddress}";
     }
 
-    /// <summary>
-    /// Get current user ID from claims
-    /// </summary>
-    private string GetCurrentUserId()
-    {
-        return User.FindFirst("sub")?.Value ?? 
-               User.FindFirst("id")?.Value ?? 
-               User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? 
-               string.Empty;
-    }
 }
 
 /// <summary>

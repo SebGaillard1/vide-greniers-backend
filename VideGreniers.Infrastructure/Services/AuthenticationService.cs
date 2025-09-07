@@ -578,6 +578,18 @@ public class AuthenticationService : IAuthenticationService
             userDto);
     }
 
+    public async Task<ErrorOr<List<string>>> GetUserRolesAsync(Guid userId)
+    {
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user == null || user.IsDeleted)
+        {
+            return Error.NotFound("User.NotFound", "User not found.");
+        }
+
+        var roles = await _userManager.GetRolesAsync(user);
+        return roles.ToList();
+    }
+
     private async Task<UserDto> CreateUserDtoAsync(ApplicationUser applicationUser)
     {
         // Get user roles from Identity system

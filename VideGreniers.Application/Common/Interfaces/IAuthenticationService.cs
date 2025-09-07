@@ -76,4 +76,11 @@ public interface IAuthenticationService
     /// <param name="appleUserInfo">Apple user information from token validation</param>
     /// <returns>Authentication result</returns>
     Task<ErrorOr<AuthenticationResult>> AppleLoginAsync(AppleUserInfo appleUserInfo);
+
+    /// <summary>
+    /// Get user roles by user ID
+    /// </summary>
+    /// <param name="userId">User ID</param>
+    /// <returns>List of user roles</returns>
+    Task<ErrorOr<List<string>>> GetUserRolesAsync(Guid userId);
 }

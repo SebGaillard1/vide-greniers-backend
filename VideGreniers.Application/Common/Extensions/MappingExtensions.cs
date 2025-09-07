@@ -62,7 +62,7 @@ public static class MappingExtensions
     /// <summary>
     /// Maps a User entity to UserDto with computed properties
     /// </summary>
-    public static UserDto ToDto(this User user, int? createdEventsCount = null, int? favoritesCount = null)
+    public static UserDto ToDto(this User user, int? createdEventsCount = null, int? favoritesCount = null, List<string>? roles = null)
     {
         return new UserDto
         {
@@ -74,7 +74,9 @@ public static class MappingExtensions
             CreatedOnUtc = user.CreatedOnUtc,
             ModifiedOnUtc = user.ModifiedOnUtc,
             CreatedEventsCount = createdEventsCount ?? 0,
-            FavoritesCount = favoritesCount ?? 0
+            FavoritesCount = favoritesCount ?? 0,
+            Roles = roles ?? [],
+            IsAuthenticated = true
         };
     }
 
