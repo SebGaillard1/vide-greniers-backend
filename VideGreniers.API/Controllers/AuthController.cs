@@ -99,9 +99,14 @@ public class AuthController : ApiController
             Email = userEmail,
             FirstName = firstName,
             LastName = lastName,
+            FullName = $"{firstName} {lastName}".Trim(),
+            PhoneNumber = (string?)null, // Not available in claims
+            CreatedOnUtc = DateTime.UtcNow, // Adding this field that iOS expects
+            ModifiedOnUtc = (DateTime?)null, // Not tracked in claims
+            CreatedEventsCount = 0, // Would need database query to get actual count
+            FavoritesCount = 0, // Would need database query to get actual count
             Roles = roles,
-            IsAuthenticated = true,
-            CreatedOnUtc = DateTime.UtcNow // Adding this field that iOS expects
+            IsAuthenticated = true
         };
 
         return Ok(new ApiResponse<object>

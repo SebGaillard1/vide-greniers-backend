@@ -17,4 +17,8 @@ public record UserDto
     public string FullName => $"{FirstName} {LastName}".Trim();
     public int CreatedEventsCount { get; init; }
     public int FavoritesCount { get; init; }
+    
+    // Authentication properties
+    public List<string> Roles { get; init; } = [];
+    public bool IsAuthenticated { get; init; } = true;
 }

@@ -580,6 +580,9 @@ public class AuthenticationService : IAuthenticationService
 
     private async Task<UserDto> CreateUserDtoAsync(ApplicationUser applicationUser)
     {
+        // Get user roles from Identity system
+        var roles = await _userManager.GetRolesAsync(applicationUser);
+        
         // Try to get the domain user using DomainUserId reference
         Domain.Entities.User? domainUser = null;
         if (applicationUser.DomainUserId.HasValue)
@@ -599,7 +602,9 @@ public class AuthenticationService : IAuthenticationService
                 CreatedOnUtc = domainUser.CreatedOnUtc,
                 ModifiedOnUtc = domainUser.ModifiedOnUtc,
                 CreatedEventsCount = domainUser.CreatedEvents.Count,
-                FavoritesCount = domainUser.Favorites.Count(f => f.Status == Domain.Enums.FavoriteStatus.Active)
+                FavoritesCount = domainUser.Favorites.Count(f => f.Status == Domain.Enums.FavoriteStatus.Active),
+                Roles = roles.ToList(),
+                IsAuthenticated = true
             };
         }
 
@@ -614,7 +619,9 @@ public class AuthenticationService : IAuthenticationService
             CreatedOnUtc = applicationUser.CreatedAt,
             ModifiedOnUtc = applicationUser.UpdatedAt,
             CreatedEventsCount = 0,
-            FavoritesCount = 0
+            FavoritesCount = 0,
+            Roles = roles.ToList(),
+            IsAuthenticated = true
         };
     }
 }
