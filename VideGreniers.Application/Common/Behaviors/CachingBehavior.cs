@@ -50,11 +50,39 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
             
             if (cachedResponse != null)
             {
-                var deserializedResponse = JsonSerializer.Deserialize<TResponse>(cachedResponse);
-                if (deserializedResponse != null)
+                // We need to get the type parameter of TResponse to deserialize correctly
+                var responseType = typeof(TResponse);
+                
+                // For ErrorOr<T>, we need to extract T and deserialize to that type
+                if (responseType.IsGenericType && responseType.GetGenericTypeDefinition() == typeof(ErrorOr<>))
                 {
-                    _logger.LogDebug("Cache hit for key {CacheKey}", cacheKey);
-                    return deserializedResponse;
+                    var valueType = responseType.GetGenericArguments()[0];
+                    var deserializedValue = JsonSerializer.Deserialize(cachedResponse, valueType);
+                    
+                    if (deserializedValue != null)
+                    {
+                        // Use reflection to create ErrorOr<T> using implicit conversion from T
+                        var implicitOperatorMethod = responseType.GetMethod("op_Implicit", new[] { valueType });
+                        if (implicitOperatorMethod != null)
+                        {
+                            var errorOrResult = implicitOperatorMethod.Invoke(null, new[] { deserializedValue });
+                            if (errorOrResult != null)
+                            {
+                                _logger.LogDebug("Cache hit for key {CacheKey}", cacheKey);
+                                return (TResponse)errorOrResult;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    // Fallback for non-ErrorOr types
+                    var deserializedResponse = JsonSerializer.Deserialize<TResponse>(cachedResponse);
+                    if (deserializedResponse != null)
+                    {
+                        _logger.LogDebug("Cache hit for key {CacheKey}", cacheKey);
+                        return deserializedResponse;
+                    }
                 }
             }
         }
@@ -71,7 +99,11 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
         {
             try
             {
-                var serializedResponse = JsonSerializer.Serialize(response);
+                // Extract the actual value from the ErrorOr response for serialization
+                // Use reflection to get the Value property since TResponse is constrained to IErrorOr
+                var valueProperty = typeof(TResponse).GetProperty("Value");
+                var valueToCache = valueProperty?.GetValue(response);
+                var serializedResponse = JsonSerializer.Serialize(valueToCache);
                 await _cacheService.SetAsync(cacheKey, serializedResponse, cacheTime, cancellationToken);
                 _logger.LogDebug("Cached response for key {CacheKey}", cacheKey);
             }
