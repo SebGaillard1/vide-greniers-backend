@@ -2,8 +2,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VideGreniers.API.Common;
 using VideGreniers.Application.Common.DTOs;
+using VideGreniers.Application.Common.Interfaces;
 using VideGreniers.Application.Users.Commands.UpdateUserProfile;
 using VideGreniers.Application.Users.Queries.GetUserProfile;
+using VideGreniers.Domain.Entities;
+using VideGreniers.Domain.Specifications;
 
 namespace VideGreniers.API.Controllers;
 
@@ -15,6 +18,19 @@ namespace VideGreniers.API.Controllers;
 [Tags("Users")]
 public class UsersController : ApiController
 {
+    private readonly ICurrentUserService _currentUserService;
+    private readonly IRepository<Favorite> _favoriteRepository;
+    private readonly IRepository<Event> _eventRepository;
+
+    public UsersController(
+        ICurrentUserService currentUserService,
+        IRepository<Favorite> favoriteRepository,
+        IRepository<Event> eventRepository)
+    {
+        _currentUserService = currentUserService;
+        _favoriteRepository = favoriteRepository;
+        _eventRepository = eventRepository;
+    }
     /// <summary>
     /// Get current user's profile information
     /// </summary>
@@ -54,14 +70,35 @@ public class UsersController : ApiController
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetUserStats()
     {
-        // This would be implemented later with a proper query
+        // Get domain user ID
+        var userId = await _currentUserService.GetDomainUserIdAsync();
+        if (!userId.HasValue)
+        {
+            return NotFound(new ApiResponse<object>
+            {
+                Success = false,
+                Errors = new List<string> { "User not found" },
+                Timestamp = DateTime.UtcNow
+            });
+        }
+
+        // Count active favorites
+        var activeFavoritesSpec = new ActiveUserFavoritesSpecification(userId.Value);
+        var totalFavorites = await _favoriteRepository.CountAsync(activeFavoritesSpec);
+
+        // Count created events
+        var createdEventsSpec = new EventsByOrganizerSpecification(userId.Value);
+        var totalEventsCreated = await _eventRepository.CountAsync(createdEventsSpec);
+
         var statsDto = new UserStatsDto
         {
-            TotalFavorites = 0,
-            TotalEventsCreated = 0,
-            TotalNotifications = 0,
-            UnreadNotifications = 0,
-            AccountCreatedDate = DateTime.UtcNow
+            TotalFavorites = totalFavorites,
+            TotalEventsCreated = totalEventsCreated,
+            TotalNotifications = 0, // TODO: Implement when notifications are ready
+            UnreadNotifications = 0, // TODO: Implement when notifications are ready
+            AccountCreatedDate = DateTime.UtcNow, // TODO: Get from user entity
+            LastLoginDate = null, // TODO: Track last login
+            DaysActive = 0 // TODO: Calculate days active
         };
 
         var response = new ApiResponse<UserStatsDto>
