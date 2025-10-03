@@ -21,15 +21,18 @@ public class UsersController : ApiController
     private readonly ICurrentUserService _currentUserService;
     private readonly IRepository<Favorite> _favoriteRepository;
     private readonly IRepository<Event> _eventRepository;
+    private readonly IRepository<User> _userRepository;
 
     public UsersController(
         ICurrentUserService currentUserService,
         IRepository<Favorite> favoriteRepository,
-        IRepository<Event> eventRepository)
+        IRepository<Event> eventRepository,
+        IRepository<User> userRepository)
     {
         _currentUserService = currentUserService;
         _favoriteRepository = favoriteRepository;
         _eventRepository = eventRepository;
+        _userRepository = userRepository;
     }
     /// <summary>
     /// Get current user's profile information
@@ -82,6 +85,18 @@ public class UsersController : ApiController
             });
         }
 
+        // Get user entity to get account created date
+        var user = await _userRepository.GetByIdAsync(userId.Value);
+        if (user == null)
+        {
+            return NotFound(new ApiResponse<object>
+            {
+                Success = false,
+                Errors = new List<string> { "User not found" },
+                Timestamp = DateTime.UtcNow
+            });
+        }
+
         // Count active favorites
         var activeFavoritesSpec = new ActiveUserFavoritesSpecification(userId.Value);
         var totalFavorites = await _favoriteRepository.CountAsync(activeFavoritesSpec);
@@ -96,7 +111,7 @@ public class UsersController : ApiController
             TotalEventsCreated = totalEventsCreated,
             TotalNotifications = 0, // TODO: Implement when notifications are ready
             UnreadNotifications = 0, // TODO: Implement when notifications are ready
-            AccountCreatedDate = DateTime.UtcNow, // TODO: Get from user entity
+            AccountCreatedDate = user.CreatedOnUtc,
             LastLoginDate = null, // TODO: Track last login
             DaysActive = 0 // TODO: Calculate days active
         };
