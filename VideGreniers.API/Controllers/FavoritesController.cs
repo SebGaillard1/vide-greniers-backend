@@ -166,7 +166,7 @@ public class FavoritesController : ApiController
     /// <param name="daysAhead">Number of days to look ahead (default: 7)</param>
     /// <returns>List of upcoming favorite events</returns>
     [HttpGet("upcoming")]
-    [ProducesResponseType(typeof(ApiResponse<List<EventDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<List<FavoriteDto>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetUpcomingFavorites([FromQuery] int daysAhead = 7)
     {
@@ -178,7 +178,7 @@ public class FavoritesController : ApiController
             return HandleResult(result);
         }
 
-        var response = new ApiResponse<List<EventDto>>
+        var response = new ApiResponse<List<FavoriteDto>>
         {
             Data = result.Value,
             Success = true,

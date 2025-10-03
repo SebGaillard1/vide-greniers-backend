@@ -16,13 +16,19 @@ namespace VideGreniers.Application.Events.Queries.SearchEvents;
 public class SearchEventsQueryHandler : IRequestHandler<SearchEventsQuery, ErrorOr<PaginatedList<EventDto>>>
 {
     private readonly IRepository<Event> _eventRepository;
+    private readonly IRepository<Favorite> _favoriteRepository;
+    private readonly ICurrentUserService _currentUserService;
     private readonly IMapper _mapper;
 
     public SearchEventsQueryHandler(
         IRepository<Event> eventRepository,
+        IRepository<Favorite> favoriteRepository,
+        ICurrentUserService currentUserService,
         IMapper mapper)
     {
         _eventRepository = eventRepository;
+        _favoriteRepository = favoriteRepository;
+        _currentUserService = currentUserService;
         _mapper = mapper;
     }
 
@@ -97,6 +103,24 @@ public class SearchEventsQueryHandler : IRequestHandler<SearchEventsQuery, Error
 
         // Map to DTOs
         var eventDtos = events.Select(e => e.ToDto()).ToList();
+
+        // Populate isFavorite field if user is authenticated
+        if (_currentUserService.IsAuthenticated)
+        {
+            var userId = await _currentUserService.GetDomainUserIdAsync();
+            if (userId.HasValue)
+            {
+                var eventIds = eventDtos.Select(e => e.Id).ToList();
+                var favoriteSpec = new ActiveUserFavoritesSpecification(userId.Value);
+                var userFavorites = await _favoriteRepository.GetAsync(favoriteSpec, cancellationToken);
+                var favoriteEventIds = userFavorites.Select(f => f.EventId).ToHashSet();
+
+                eventDtos = eventDtos.Select(dto => dto with
+                {
+                    IsFavorite = favoriteEventIds.Contains(dto.Id)
+                }).ToList();
+            }
+        }
 
         // Create paginated result
         var paginatedResult = PaginatedList<EventDto>.Create(

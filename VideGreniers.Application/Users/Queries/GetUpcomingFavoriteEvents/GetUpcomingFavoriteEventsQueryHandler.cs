@@ -2,6 +2,7 @@ using AutoMapper;
 using ErrorOr;
 using MediatR;
 using VideGreniers.Application.Common.DTOs;
+using VideGreniers.Application.Common.Extensions;
 using VideGreniers.Application.Common.Interfaces;
 using VideGreniers.Domain.Entities;
 using VideGreniers.Domain.Specifications;
@@ -11,7 +12,7 @@ namespace VideGreniers.Application.Users.Queries.GetUpcomingFavoriteEvents;
 /// <summary>
 /// Handler for getting user's upcoming favorite events
 /// </summary>
-public class GetUpcomingFavoriteEventsQueryHandler : IRequestHandler<GetUpcomingFavoriteEventsQuery, ErrorOr<List<EventDto>>>
+public class GetUpcomingFavoriteEventsQueryHandler : IRequestHandler<GetUpcomingFavoriteEventsQuery, ErrorOr<List<FavoriteDto>>>
 {
     private readonly IRepository<Favorite> _favoriteRepository;
     private readonly ICurrentUserService _currentUserService;
@@ -30,7 +31,7 @@ public class GetUpcomingFavoriteEventsQueryHandler : IRequestHandler<GetUpcoming
         _mapper = mapper;
     }
 
-    public async Task<ErrorOr<List<EventDto>>> Handle(GetUpcomingFavoriteEventsQuery request, CancellationToken cancellationToken)
+    public async Task<ErrorOr<List<FavoriteDto>>> Handle(GetUpcomingFavoriteEventsQuery request, CancellationToken cancellationToken)
     {
         // Validate user is authenticated
         if (!_currentUserService.IsAuthenticated)
@@ -47,7 +48,7 @@ public class GetUpcomingFavoriteEventsQueryHandler : IRequestHandler<GetUpcoming
 
         // Try to get from cache first
         var cacheKey = $"favorites:upcoming:user_{userId.Value}:days_{request.DaysAhead}";
-        var cachedResult = await _cacheService.GetAsync<List<EventDto>>(cacheKey, cancellationToken);
+        var cachedResult = await _cacheService.GetAsync<List<FavoriteDto>>(cacheKey, cancellationToken);
         if (cachedResult != null)
         {
             return cachedResult;
@@ -56,20 +57,18 @@ public class GetUpcomingFavoriteEventsQueryHandler : IRequestHandler<GetUpcoming
         // Get upcoming favorite events specification
         var endDate = DateTimeOffset.UtcNow.AddDays(request.DaysAhead);
         var specification = new FavoritesForUpcomingEventsSpecification(userId.Value);
-        
+
         var favorites = await _favoriteRepository.GetAsync(specification, cancellationToken);
-        
-        // Filter by days ahead in case specification doesn't handle custom days
+
+        // Filter by days ahead and convert to DTOs
         var upcomingFavorites = favorites
             .Where(f => f.Event.DateRange.StartDate <= endDate)
-            .Select(f => f.Event)
+            .Select(f => f.ToDto())
             .ToList();
 
-        var result = _mapper.Map<List<EventDto>>(upcomingFavorites);
-
         // Cache the result for 5 minutes
-        await _cacheService.SetAsync(cacheKey, result, TimeSpan.FromMinutes(5), cancellationToken);
+        await _cacheService.SetAsync(cacheKey, upcomingFavorites, TimeSpan.FromMinutes(5), cancellationToken);
 
-        return result;
+        return upcomingFavorites;
     }
 }
