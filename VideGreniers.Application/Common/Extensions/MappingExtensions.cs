@@ -55,7 +55,7 @@ public static class MappingExtensions
             // These will be set separately by handlers
             DistanceKm = null,
             IsFavorite = null,
-            FavoriteCount = 0
+            FavoriteCount = eventEntity.FavoriteCount
         };
     }
 
