@@ -32,12 +32,17 @@ public class GetUserFavoritesQueryHandler : IRequestHandler<GetUserFavoritesQuer
     public async Task<ErrorOr<PaginatedList<FavoriteDto>>> Handle(GetUserFavoritesQuery request, CancellationToken cancellationToken)
     {
         // Validate user is authenticated
-        if (!_currentUserService.IsAuthenticated || !_currentUserService.UserId.HasValue)
+        if (!_currentUserService.IsAuthenticated)
         {
             return Error.Unauthorized("User must be authenticated to view favorites");
         }
 
-        var userId = _currentUserService.UserId.Value;
+        // Get domain user ID
+        var userId = await _currentUserService.GetDomainUserIdAsync();
+        if (!userId.HasValue)
+        {
+            return Error.NotFound("User not found");
+        }
 
         // Validate page size
         if (request.PageSize > 100)
@@ -46,7 +51,7 @@ public class GetUserFavoritesQueryHandler : IRequestHandler<GetUserFavoritesQuer
         }
 
         // Get user's active favorites with event details
-        var specification = new ActiveUserFavoritesSpecification(userId);
+        var specification = new ActiveUserFavoritesSpecification(userId.Value);
         var allFavorites = await _favoriteRepository.GetAsync(specification, cancellationToken);
 
         // Apply pagination manually since we're using specifications

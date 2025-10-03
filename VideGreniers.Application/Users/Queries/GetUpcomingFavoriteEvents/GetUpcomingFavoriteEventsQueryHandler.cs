@@ -33,15 +33,20 @@ public class GetUpcomingFavoriteEventsQueryHandler : IRequestHandler<GetUpcoming
     public async Task<ErrorOr<List<EventDto>>> Handle(GetUpcomingFavoriteEventsQuery request, CancellationToken cancellationToken)
     {
         // Validate user is authenticated
-        if (!_currentUserService.IsAuthenticated || !_currentUserService.UserId.HasValue)
+        if (!_currentUserService.IsAuthenticated)
         {
             return Error.Unauthorized("User must be authenticated to get upcoming favorites");
         }
 
-        var userId = _currentUserService.UserId.Value;
+        // Get domain user ID
+        var userId = await _currentUserService.GetDomainUserIdAsync();
+        if (!userId.HasValue)
+        {
+            return Error.NotFound("User not found");
+        }
 
         // Try to get from cache first
-        var cacheKey = $"favorites:upcoming:user_{userId}:days_{request.DaysAhead}";
+        var cacheKey = $"favorites:upcoming:user_{userId.Value}:days_{request.DaysAhead}";
         var cachedResult = await _cacheService.GetAsync<List<EventDto>>(cacheKey, cancellationToken);
         if (cachedResult != null)
         {
@@ -50,7 +55,7 @@ public class GetUpcomingFavoriteEventsQueryHandler : IRequestHandler<GetUpcoming
 
         // Get upcoming favorite events specification
         var endDate = DateTimeOffset.UtcNow.AddDays(request.DaysAhead);
-        var specification = new FavoritesForUpcomingEventsSpecification(userId);
+        var specification = new FavoritesForUpcomingEventsSpecification(userId.Value);
         
         var favorites = await _favoriteRepository.GetAsync(specification, cancellationToken);
         

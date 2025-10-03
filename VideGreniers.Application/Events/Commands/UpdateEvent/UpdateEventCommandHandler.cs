@@ -28,7 +28,13 @@ public class UpdateEventCommandHandler : IRequestHandler<UpdateEventCommand, Err
     public async Task<ErrorOr<Updated>> Handle(UpdateEventCommand request, CancellationToken cancellationToken)
     {
         // Validate user is authenticated
-        if (!_currentUserService.IsAuthenticated || !_currentUserService.UserId.HasValue)
+        if (!_currentUserService.IsAuthenticated)
+        {
+            return Error.Unauthorized("User must be authenticated to update events");
+        }
+
+        var domainUserId = await _currentUserService.GetDomainUserIdAsync();
+        if (!domainUserId.HasValue)
         {
             return Error.Unauthorized("User must be authenticated to update events");
         }
@@ -41,7 +47,7 @@ public class UpdateEventCommandHandler : IRequestHandler<UpdateEventCommand, Err
         }
 
         // Verify ownership
-        if (existingEvent.OrganizerId != _currentUserService.UserId.Value)
+        if (existingEvent.OrganizerId != domainUserId.Value)
         {
             return Error.Forbidden("Only the event organizer can update this event");
         }

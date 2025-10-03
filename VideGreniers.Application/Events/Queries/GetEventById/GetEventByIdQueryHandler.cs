@@ -45,22 +45,26 @@ public class GetEventByIdQueryHandler : IRequestHandler<GetEventByIdQuery, Error
         var eventDto = eventEntity.ToDto();
 
         // Check if current user has favorited this event
-        if (_currentUserService.IsAuthenticated && _currentUserService.UserId.HasValue)
+        if (_currentUserService.IsAuthenticated)
         {
-            var favoriteSpec = new UserEventFavoriteSpecification(_currentUserService.UserId.Value, request.EventId);
-            var favorite = await _favoriteRepository.GetSingleAsync(favoriteSpec, cancellationToken);
-            
-            // Update DTO with favorite status
-            eventDto = eventDto with 
-            { 
-                IsFavorite = favorite != null && favorite.Status == Domain.Enums.FavoriteStatus.Active 
-            };
+            var domainUserId = await _currentUserService.GetDomainUserIdAsync();
+            if (domainUserId.HasValue)
+            {
+                var favoriteSpec = new UserEventFavoriteSpecification(domainUserId.Value, request.EventId);
+                var favorite = await _favoriteRepository.GetSingleAsync(favoriteSpec, cancellationToken);
+
+                // Update DTO with favorite status
+                eventDto = eventDto with
+                {
+                    IsFavorite = favorite != null && favorite.Status == Domain.Enums.FavoriteStatus.Active
+                };
+            }
         }
 
         // Get favorite count for this event
         var favoriteCountSpec = new FavoritesCountByEventSpecification(request.EventId);
         var favoriteCount = await _favoriteRepository.CountAsync(favoriteCountSpec, cancellationToken);
-        
+
         eventDto = eventDto with { FavoriteCount = favoriteCount };
 
         return eventDto;

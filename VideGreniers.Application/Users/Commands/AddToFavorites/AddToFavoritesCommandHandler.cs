@@ -3,6 +3,7 @@ using MediatR;
 using VideGreniers.Application.Common.Interfaces;
 using VideGreniers.Domain.Entities;
 using VideGreniers.Domain.Specifications;
+using IUnitOfWork = VideGreniers.Domain.Interfaces.IUnitOfWork;
 
 namespace VideGreniers.Application.Users.Commands.AddToFavorites;
 
@@ -16,33 +17,41 @@ public class AddToFavoritesCommandHandler : IRequestHandler<AddToFavoritesComman
     private readonly IRepository<User> _userRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly ICacheService _cacheService;
+    private readonly IUnitOfWork _unitOfWork;
 
     public AddToFavoritesCommandHandler(
         IRepository<Favorite> favoriteRepository,
         IRepository<Event> eventRepository,
         IRepository<User> userRepository,
         ICurrentUserService currentUserService,
-        ICacheService cacheService)
+        ICacheService cacheService,
+        IUnitOfWork unitOfWork)
     {
         _favoriteRepository = favoriteRepository;
         _eventRepository = eventRepository;
         _userRepository = userRepository;
         _currentUserService = currentUserService;
         _cacheService = cacheService;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<ErrorOr<Success>> Handle(AddToFavoritesCommand request, CancellationToken cancellationToken)
     {
         // Validate user is authenticated
-        if (!_currentUserService.IsAuthenticated || !_currentUserService.UserId.HasValue)
+        if (!_currentUserService.IsAuthenticated)
         {
             return Error.Unauthorized("User must be authenticated to add favorites");
         }
 
-        var userId = _currentUserService.UserId.Value;
+        // Get domain user ID
+        var userId = await _currentUserService.GetDomainUserIdAsync();
+        if (!userId.HasValue)
+        {
+            return Error.NotFound("User not found");
+        }
 
         // Verify user exists
-        var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
+        var user = await _userRepository.GetByIdAsync(userId.Value, cancellationToken);
         if (user == null)
         {
             return Error.NotFound("User not found");
@@ -62,7 +71,7 @@ public class AddToFavoritesCommandHandler : IRequestHandler<AddToFavoritesComman
         }
 
         // Check if already favorited
-        var existingFavoriteSpec = new UserEventFavoriteSpecification(userId, request.EventId);
+        var existingFavoriteSpec = new UserEventFavoriteSpecification(userId.Value, request.EventId);
         var existingFavorite = await _favoriteRepository.GetSingleAsync(existingFavoriteSpec, cancellationToken);
 
         if (existingFavorite != null)
@@ -75,7 +84,7 @@ public class AddToFavoritesCommandHandler : IRequestHandler<AddToFavoritesComman
             // Reactivate archived favorite
             existingFavorite.Restore();
             await _favoriteRepository.UpdateAsync(existingFavorite, cancellationToken);
-            
+
             // Increment favorite count on event
             eventEntity.IncrementFavoriteCount();
             await _eventRepository.UpdateAsync(eventEntity, cancellationToken);
@@ -83,21 +92,24 @@ public class AddToFavoritesCommandHandler : IRequestHandler<AddToFavoritesComman
         else
         {
             // Create new favorite
-            var favoriteResult = Favorite.Create(userId, request.EventId);
+            var favoriteResult = Favorite.Create(userId.Value, request.EventId);
             if (favoriteResult.IsError)
             {
                 return favoriteResult.Errors;
             }
 
             await _favoriteRepository.AddAsync(favoriteResult.Value, cancellationToken);
-            
+
             // Increment favorite count on event
             eventEntity.IncrementFavoriteCount();
             await _eventRepository.UpdateAsync(eventEntity, cancellationToken);
         }
 
+        // Save changes to database
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
         // Invalidate user favorites cache
-        await _cacheService.RemoveByPatternAsync($"favorites:user_{userId}:*", cancellationToken);
+        await _cacheService.RemoveByPatternAsync($"favorites:user_{userId.Value}:*", cancellationToken);
 
         return Result.Success;
     }

@@ -37,26 +37,31 @@ public class GetUserProfileQueryHandler : IRequestHandler<GetUserProfileQuery, E
     public async Task<ErrorOr<UserDto>> Handle(GetUserProfileQuery request, CancellationToken cancellationToken)
     {
         // Validate user is authenticated
-        if (!_currentUserService.IsAuthenticated || !_currentUserService.UserId.HasValue)
+        if (!_currentUserService.IsAuthenticated)
         {
             return Error.Unauthorized("User must be authenticated to view profile");
         }
 
-        var userId = _currentUserService.UserId.Value;
+        // Get domain user ID
+        var userId = await _currentUserService.GetDomainUserIdAsync();
+        if (!userId.HasValue)
+        {
+            return Error.NotFound("User not found");
+        }
 
         // Get user
-        var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
+        var user = await _userRepository.GetByIdAsync(userId.Value, cancellationToken);
         if (user == null)
         {
             return Error.NotFound("User not found");
         }
 
         // Get user's created events count
-        var eventsSpec = new EventsByOrganizerSpecification(userId, includeDeleted: false);
+        var eventsSpec = new EventsByOrganizerSpecification(userId.Value, includeDeleted: false);
         var createdEventsCount = await _eventRepository.CountAsync(eventsSpec, cancellationToken);
 
         // Get user's active favorites count
-        var favoritesSpec = new ActiveUserFavoritesSpecification(userId);
+        var favoritesSpec = new ActiveUserFavoritesSpecification(userId.Value);
         var favoritesCount = await _favoriteRepository.CountAsync(favoritesSpec, cancellationToken);
 
         // Map to DTO with computed properties

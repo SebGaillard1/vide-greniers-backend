@@ -28,12 +28,17 @@ public class GetFavoriteStatusQueryHandler : IRequestHandler<GetFavoriteStatusQu
     public async Task<ErrorOr<Dictionary<Guid, bool>>> Handle(GetFavoriteStatusQuery request, CancellationToken cancellationToken)
     {
         // Validate user is authenticated
-        if (!_currentUserService.IsAuthenticated || !_currentUserService.UserId.HasValue)
+        if (!_currentUserService.IsAuthenticated)
         {
             return Error.Unauthorized("User must be authenticated to check favorite status");
         }
 
-        var userId = _currentUserService.UserId.Value;
+        // Get domain user ID
+        var userId = await _currentUserService.GetDomainUserIdAsync();
+        if (!userId.HasValue)
+        {
+            return Error.NotFound("User not found");
+        }
 
         if (!request.EventIds.Any())
         {
@@ -41,7 +46,7 @@ public class GetFavoriteStatusQueryHandler : IRequestHandler<GetFavoriteStatusQu
         }
 
         // Try to get from cache first
-        var cacheKey = $"favorites:status:user_{userId}:{string.Join(",", request.EventIds.OrderBy(x => x))}";
+        var cacheKey = $"favorites:status:user_{userId.Value}:{string.Join(",", request.EventIds.OrderBy(x => x))}";
         var cachedResult = await _cacheService.GetAsync<Dictionary<Guid, bool>>(cacheKey, cancellationToken);
         if (cachedResult != null)
         {
@@ -49,7 +54,7 @@ public class GetFavoriteStatusQueryHandler : IRequestHandler<GetFavoriteStatusQu
         }
 
         // Get user's active favorites for these specific events
-        var specification = new UserEventsFavoriteStatusSpecification(userId, request.EventIds);
+        var specification = new UserEventsFavoriteStatusSpecification(userId.Value, request.EventIds);
         var favorites = await _favoriteRepository.GetAsync(specification, cancellationToken);
 
         // Create result dictionary

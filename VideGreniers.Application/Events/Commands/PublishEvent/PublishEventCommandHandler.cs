@@ -30,7 +30,13 @@ public class PublishEventCommandHandler : IRequestHandler<PublishEventCommand, E
     public async Task<ErrorOr<Success>> Handle(PublishEventCommand request, CancellationToken cancellationToken)
     {
         // Validate user is authenticated
-        if (!_currentUserService.IsAuthenticated || !_currentUserService.UserId.HasValue)
+        if (!_currentUserService.IsAuthenticated)
+        {
+            return Error.Unauthorized("User must be authenticated to publish events");
+        }
+
+        var domainUserId = await _currentUserService.GetDomainUserIdAsync();
+        if (!domainUserId.HasValue)
         {
             return Error.Unauthorized("User must be authenticated to publish events");
         }
@@ -43,7 +49,7 @@ public class PublishEventCommandHandler : IRequestHandler<PublishEventCommand, E
         }
 
         // Verify ownership
-        if (existingEvent.OrganizerId != _currentUserService.UserId.Value)
+        if (existingEvent.OrganizerId != domainUserId.Value)
         {
             return Error.Forbidden("Only the event organizer can publish this event");
         }

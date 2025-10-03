@@ -27,7 +27,13 @@ public class CancelEventCommandHandler : IRequestHandler<CancelEventCommand, Err
     public async Task<ErrorOr<Success>> Handle(CancelEventCommand request, CancellationToken cancellationToken)
     {
         // Validate user is authenticated
-        if (!_currentUserService.IsAuthenticated || !_currentUserService.UserId.HasValue)
+        if (!_currentUserService.IsAuthenticated)
+        {
+            return Error.Unauthorized("User must be authenticated to cancel events");
+        }
+
+        var domainUserId = await _currentUserService.GetDomainUserIdAsync();
+        if (!domainUserId.HasValue)
         {
             return Error.Unauthorized("User must be authenticated to cancel events");
         }
@@ -46,7 +52,7 @@ public class CancelEventCommandHandler : IRequestHandler<CancelEventCommand, Err
         }
 
         // Verify ownership
-        if (existingEvent.OrganizerId != _currentUserService.UserId.Value)
+        if (existingEvent.OrganizerId != domainUserId.Value)
         {
             return Error.Forbidden("Only the event organizer can cancel this event");
         }
