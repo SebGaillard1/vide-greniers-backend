@@ -86,6 +86,13 @@ public class CreateEventCommandHandler : IRequestHandler<CreateEventCommand, Err
             }
         }
 
+        // Automatically publish the event so it's visible in the app
+        var publishResult = newEvent.Publish();
+        if (publishResult.IsError)
+        {
+            return publishResult.Errors;
+        }
+
         // Save the event
         var createdEvent = await _eventRepository.AddAsync(newEvent, cancellationToken);
         
